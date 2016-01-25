@@ -443,6 +443,12 @@ module type IP = sig
       packet going to [dst] for protocol [proto].  The space in [pkt] after the
       first [len] bytes can be used by the client. *)
 
+  val allocate: t -> src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
+  (** [allocate ~src ~dst ~proto] returns a pair of [(pkt, len)] such that
+      [Cstruct.sub pkt 0 len] is the IP header (including the link layer part) of a
+      packet going to [dst] for protocol [proto].  The space in [pkt] after the
+      first [len] bytes can be used by the client. *)
+
   val write: t -> buffer -> buffer -> unit io
   (** [write t frame buf] writes the packet [frame :: buf :: []] to
       the address [dst]. *)
@@ -621,6 +627,10 @@ module type UDP = sig
       that writes [data] from an optional [src_port] to a [dst]
       and [dst_port] IPv4 address pair. *)
 
+  val writev: ?src:ipaddr -> ?src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer list -> unit io
+  (** [writev ?source_ip ?source_port ~dest_ip ~dest_port t bufs] is a thread
+      that writes [bufs] from an optional [source_ip] and [source_port] to a [dest_ip]
+      and [dest_port] IPv4 address pair. *)
 end
 
 (** {1 TCP stack}
@@ -694,11 +704,25 @@ module type TCP = sig
   (** [create_connection t (addr,port)] opens a TCPv4 connection
       to the specified endpoint. *)
 
+  type action = [
+    | `Reject (* reject by sending a RST *)
+    | `Accept of callback
+  ]
+  (** Action to take for an incoming flow *)
+
+  type on_flow_arrival_callback = src:(ipaddr * int) -> dst:(ipaddr * int) -> action io
+  (** Callback called per incoming flow to decide what action to take *)
+
   val input: t -> listeners:(int -> callback option) -> ipinput
   (** [input t listeners] defines a mapping of threads that are
       willing to accept new flows on a given port.  If the [callback]
       returns [None], the input function will return an RST to refuse
       connections on a port. *)
+
+  val input_flow: t -> on_flow_arrival:on_flow_arrival_callback -> ipinput
+  (** [input_flow t on_flow_arrival] creates an [ipinput] function which will
+      call [on_flow_arrival] for each new incoming flow to decide how to
+      handle it. *)
 end
 
 (** {1 TCP/IPv4 stack}
@@ -790,6 +814,19 @@ module type STACKV4 = sig
       between 0 and 65535 inclusive), it raises [Invalid_argument].
       Multiple bindings to the same port will overwrite previous
       bindings, so callbacks will not chain if ports clash. *)
+
+  type tcpv4_action = [
+    | `Reject (* reject by sending a RST *)
+    | `Accept of TCPV4.callback
+  ]
+  (** Action to take for an incoming TCPv4 flow *)
+
+  type tcpv4_on_flow_arrival_callback = src:(ipv4addr * int) -> dst:(ipv4addr * int) -> tcpv4_action io
+  (** Callback called per incoming flow to decide what action to take *)
+
+  val listen_tcpv4_flow: t -> on_flow_arrival:tcpv4_on_flow_arrival_callback -> unit
+  (** [listen_tcpv4_flow t cb] registers [cb] as the callback which will be called
+      on every incoming flow to decide how to handle it. *)
 
   val listen: t -> unit io
   (** [listen t] requests that the stack listen for traffic on the
