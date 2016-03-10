@@ -353,6 +353,9 @@ module type ETHIF = sig
   (** [writev nf bufs] output a list of buffers to netfront [nf] as a
       single packet. *)
 
+  val output : t -> dst:macaddr -> proto:[<`ARP|`IPv4|`IPv6] -> buffer list -> unit io
+    (** [output t ~dst_mac ~proto:[`ARP|`IPv4|`IPv6] payload] outputs a payload with an ethernet header slapped on the front of it to the ethif's underlying physical interface.  Ethertype on the emitted frame will be that corresponding to [proto]. *)
+
   val mac: t -> macaddr
   (** [mac nf] is the MAC address of [nf]. *)
 
@@ -413,6 +416,8 @@ module type IP = sig
       [Cstruct.sub pkt 0 len] is the IP header (including the link layer part) of a
       packet going to [dst] for protocol [proto].  The space in [pkt] after the
       first [len] bytes can be used by the client. *)
+
+  val output: t -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer list -> unit io
 
   val write: t -> buffer -> buffer -> unit io
   (** [write t frame buf] writes the packet [frame :: buf :: []] to
