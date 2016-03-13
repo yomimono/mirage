@@ -807,7 +807,7 @@ let generic_stackv4
     ?group
     ?(dhcp_key = Key.value @@ Key.dhcp ?group ())
     ?(net_key = Key.value @@ Key.net ?group ())
-    (tap : network impl) : stackv4 impl=
+    tap =
   if_impl
     Key.(pure ((=) `Socket) $ net_key)
     (socket_stackv4 ?group [Ipaddr.V4.any])

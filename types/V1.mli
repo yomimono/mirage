@@ -761,7 +761,6 @@ module type STACKV4 = sig
 
   include DEVICE with
     type error := error
-    and type id = (netif, mode) config
 
   module UDPV4: UDP
     with type +'a io = 'a io
