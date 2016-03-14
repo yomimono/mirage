@@ -1078,6 +1078,37 @@ let no_reporter = impl @@ object
     method connect _ _ _ = "assert false"
   end
 
+(** Logging *)
+
+let pp_level f = function
+  | `Error    -> Format.pp_print_string f "Logs.Error"
+  | `Warning  -> Format.pp_print_string f "Logs.Warning"
+  | `Info     -> Format.pp_print_string f "Logs.Info"
+  | `Debug    -> Format.pp_print_string f "Logs.Debug"
+
+let mirage_logs_conf level underlying =
+  impl @@ object
+    inherit base_configurable as super
+    method ty = clock @-> job
+    method name = "mirage_logs"
+    method module_name = "Mirage_logs.Make"
+    method packages = Key.pure ["mirage-logs"]
+    method libraries = Key.pure ["mirage-logs"]
+    method deps = [abstract underlying]
+
+    method connect_raw ~error ~names ~info ~modname fmt =
+      Fmt.pf fmt
+        "Logs.set_level (Some %a);@ \
+         %s.(create () |> run) @@@@ fun () ->@ \
+         %t"
+         pp_level level
+         modname
+         (super#connect_raw ~error ~names ~info ~modname)
+  end
+
+let with_mirage_logs ?(level=`Info) ?(clock=default_clock) job =
+  mirage_logs_conf level job $ clock
+
 (** Tracing *)
 
 type tracing = job
