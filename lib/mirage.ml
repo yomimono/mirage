@@ -125,6 +125,14 @@ let or_fail_str label connect =
     | `Error msg -> die \"%%s: %%s\" %S msg"
   connect label
 
+(** Handle errors from devices that provide a [pp_error] formatter. *)
+let or_fail_pp label modname connect =
+  Printf.sprintf
+    "%s >|= function\n\
+    | `Ok x -> x\n\
+    | `Error err -> die \"%%s: %%a\" %S %s.pp_error err"
+  connect label modname
+
 let default_random = impl random_conf
 
 type console = CONSOLE
@@ -463,8 +471,9 @@ let ethernet_conf = object
   method packages = Key.pure ["tcpip"]
   method libraries = Key.pure ["tcpip.ethif"]
   method connect _ modname = function
-    | [ eth ] -> Printf.sprintf "%s.connect %s" modname eth
-                 |> or_fail_opaque "ethernet"
+    | [ eth ] ->
+        Printf.sprintf "%s.connect %s" modname eth
+        |> or_fail_pp "Ethernet connection failed" modname
     | _ -> failwith "The ethernet connect should receive exactly one argument."
 end
 
@@ -544,7 +553,6 @@ let ipv4_conf ?address ?netmask ?gateways () = impl @@ object
           (opt_key "netmask") netmask
           (opt_key "gateways") gateways
           etif arp
-        |> or_fail_opaque "ipv4"
       | _ -> failwith "The ipv4 connect should receive exactly two arguments."
   end
 
@@ -587,7 +595,6 @@ let ipv6_conf ?address ?netmask ?gateways () = impl @@ object
           (opt_key "netmask") netmask
           (opt_key "gateways") gateways
           etif
-        |> or_fail_opaque "ipv6"
       | _ -> failwith "The ipv6 connect should receive exactly three arguments."
   end
 
@@ -641,7 +648,6 @@ let udp_direct_conf () = object
   method connect _ modname = function
     | [ ip ] ->
         Printf.sprintf "%s.connect %s" modname ip
-        |> or_fail_opaque "udp_direct"
     | _  -> failwith "The udpv6 connect should receive exactly one argument."
 end
 
@@ -663,7 +669,6 @@ let udpv4_socket_conf ipv4_key = object
     | `Xen | `Virtio | `Ukvm -> failwith "No socket implementation available for unikernel"
   method connect _ modname _ =
     Format.asprintf "%s.connect %a" modname pp_key ipv4_key
-    |> or_fail_opaque "udpv4_socket"
 end
 
 let socket_udpv4 ?group ip = impl (udpv4_socket_conf @@ Key.V4.socket ?group ip)
@@ -713,7 +718,6 @@ let tcpv4_socket_conf ipv4_key = object
     | `Xen | `Virtio | `Ukvm  -> failwith "No socket implementation available for unikernel"
   method connect _ modname _ =
     Format.asprintf "%s.connect %a" modname  pp_key ipv4_key
-    |> or_fail_opaque "tcpv4_socket"
 end
 
 let socket_tcpv4 ?group ip = impl (tcpv4_socket_conf @@ Key.V4.socket ?group ip)
@@ -831,7 +835,6 @@ let stackv4_socket_conf ?(group="") interfaces = impl @@ object
           name
           pp_key interfaces
           modname udpv4 tcpv4
-        |> or_fail_opaque "stackv4_socket"
       | _ -> failwith "Wrong arguments to connect to tcpip socket stack."
 
   end
