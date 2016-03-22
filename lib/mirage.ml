@@ -146,7 +146,7 @@ let console_unix str = impl @@ object
     method module_name = "Console_unix"
     method packages = Key.pure ["mirage-console"; "mirage-unix"]
     method libraries = Key.pure ["mirage-console.unix"]
-    method connect _ modname _args =
+    method! private connect _ modname _args =
       Printf.sprintf "%s.connect %S" modname str
       |> or_fail_opaque "console_unix"
   end
@@ -160,7 +160,7 @@ let console_xen str = impl @@ object
     method packages = Key.pure
         ["mirage-console"; "xenstore"; "mirage-xen"; "xen-gnt"; "xen-evtchn"]
     method libraries = Key.pure ["mirage-console.xen"]
-    method connect _ modname _args =
+    method! private connect _ modname _args =
       Printf.sprintf "%s.connect %S" modname str
       |> or_fail_opaque "console_xen"
   end
@@ -200,7 +200,7 @@ let crunch dirname = impl @@ object
     method packages = Key.pure [ "mirage-types"; "lwt"; "cstruct"; "crunch" ]
     method libraries = Key.pure [ "mirage-types"; "lwt"; "cstruct" ]
     method deps = [ abstract default_io_page ]
-    method connect _ modname _ =
+    method! private connect _ modname _ =
       Fmt.strf "%s.connect ()" modname
       |> or_fail_opaque "crunch"
 
@@ -233,7 +233,7 @@ let direct_kv_ro_conf dirname = impl @@ object
     method module_name = "Kvro_fs_unix"
     method packages = Key.pure ["mirage-fs-unix"]
     method libraries = Key.pure ["mirage-fs-unix"]
-    method connect i _modname _names =
+    method! private connect i _modname _names =
       Fmt.strf "Kvro_fs_unix.connect %S" (Info.root i / dirname)
       |> or_fail_opaque "direct_kv_ro"
   end
@@ -297,7 +297,7 @@ class block_conf file =
          then (202 lsl 8) lor (b.number lsl 4)
          else (1 lsl 28)  lor (b.number lsl 8)) |> string_of_int
 
-    method connect i s _ =
+    method! private connect i s _ =
       Format.sprintf "@[<v 2>%s.connect %S >|= function@ \
                       | `Error e -> die \"@@[<v 2>Error connecting block device %%S:@@ %%a@@]\" %S Block.pp_error e@ \
                       | `Ok x -> x@]" s
@@ -325,7 +325,7 @@ let archive_conf = impl @@ object
     method module_name = "Tar_mirage.Make_KV_RO"
     method packages = Key.pure [ "tar-format" ]
     method libraries = Key.pure [ "tar.mirage" ]
-    method connect _ modname = function
+    method! private connect _ modname = function
       | [ block ] ->
         Fmt.strf "%s.connect %s" modname block
         |> or_fail_opaque "archive"
@@ -346,7 +346,7 @@ let fat_conf = impl @@ object
     method libraries = Key.pure [ "fat-filesystem" ]
     method name = "fat"
     method module_name = "Fat.Fs.Make"
-    method connect _ modname l = match l with
+    method! private connect _ modname l = match l with
       | [ block_name ; _io_page_name ] ->
         Printf.sprintf "%s.connect %s" modname block_name
         |> or_fail_opaque "fat"
@@ -445,7 +445,7 @@ let network_conf (intf : string Key.key) =
 
     method libraries = self#packages
 
-    method connect _ modname _ =
+    method! private connect _ modname _ =
       Fmt.strf "@[<v 2>%s.connect %a >|= function@ \
                 | `Error e -> die \"@@[<v 2>Error connecting network device %%S:@@ %%a@@]\" %a Netif.pp_error e@ \
                 | `Ok x -> x@]"
@@ -470,7 +470,7 @@ let ethernet_conf = object
   method module_name = "Ethif.Make"
   method packages = Key.pure ["tcpip"]
   method libraries = Key.pure ["tcpip.ethif"]
-  method connect _ modname = function
+  method! private connect _ modname = function
     | [ eth ] ->
         Printf.sprintf "%s.connect %s" modname eth
         |> or_fail_pp "Ethernet connection failed" modname
@@ -491,7 +491,7 @@ let arpv4_conf = object
   method packages = Key.pure ["tcpip"]
   method libraries = Key.pure ["tcpip.arpv4"]
 
-  method connect _ modname = function
+  method! private connect _ modname = function
     | [ eth ; clock ; _time ] ->
         Printf.sprintf "%s.connect %s" modname eth clock
         |> or_fail_opaque "arpv4"
@@ -544,7 +544,7 @@ let ipv4_conf ?address ?netmask ?gateways () = impl @@ object
     method packages = Key.pure ["tcpip"]
     method libraries = Key.pure ["tcpip.ipv4"]
     method keys = address @?? netmask @?? gateways @?? []
-    method connect _ modname = function
+    method! private connect _ modname = function
       | [ etif ; arp ] ->
         Fmt.strf
           "%s.connect@[@ %a@ %a@ %a@ %s@ %s@]"
@@ -586,7 +586,7 @@ let ipv6_conf ?address ?netmask ?gateways () = impl @@ object
     method packages = Key.pure ["tcpip"]
     method libraries = Key.pure ["tcpip.ipv6"]
     method keys = address @?? netmask @?? gateways @?? []
-    method connect _ modname = function
+    method! private connect _ modname = function
       | [ etif ; _time ; _clock ] ->
         Fmt.strf
           "%s.connect@[@ %a@ %a@ %a@ %s@@]"
@@ -645,7 +645,7 @@ let udp_direct_conf () = object
   method module_name = "Udp.Make"
   method packages = Key.pure [ "tcpip" ]
   method libraries = Key.pure [ "tcpip.udp" ]
-  method connect _ modname = function
+  method! private connect _ modname = function
     | [ ip ] ->
         Printf.sprintf "%s.connect %s" modname ip
     | _  -> failwith "The udpv6 connect should receive exactly one argument."
@@ -667,7 +667,7 @@ let udpv4_socket_conf ipv4_key = object
     Key.match_ Key.(value target) @@ function
     | `Unix | `MacOSX -> [ "tcpip.udpv4-socket" ]
     | `Xen | `Virtio | `Ukvm -> failwith "No socket implementation available for unikernel"
-  method connect _ modname _ =
+  method! private connect _ modname _ =
     Format.asprintf "%s.connect %a" modname pp_key ipv4_key
 end
 
@@ -690,7 +690,7 @@ let tcp_direct_conf () = object
   method module_name = "Tcp.Flow.Make"
   method packages = Key.pure [ "tcpip" ]
   method libraries = Key.pure [ "tcpip.tcp" ]
-  method connect _ modname = function
+  method! private connect _ modname = function
     | [ip; _time; clock; _random] ->
         Printf.sprintf "%s.connect %s" modname ip clock
         |> or_fail_opaque "tcp_direct"
@@ -716,7 +716,7 @@ let tcpv4_socket_conf ipv4_key = object
     Key.match_ Key.(value target) @@ function
     | `Unix | `MacOSX -> [ "tcpip.tcpv4-socket" ]
     | `Xen | `Virtio | `Ukvm  -> failwith "No socket implementation available for unikernel"
-  method connect _ modname _ =
+  method! private connect _ modname _ =
     Format.asprintf "%s.connect %a" modname  pp_key ipv4_key
 end
 
@@ -759,7 +759,7 @@ let stackv4_direct_conf ?(group="") config = impl @@ object
     method packages = Key.pure [ "tcpip" ]
     method libraries = Key.pure [ "tcpip.stack-direct" ; "mirage.runtime" ]
 
-    method connect _i modname = function
+    method! private connect _i modname = function
       | [ _t; _r; interface; ethif; arp; ip; icmp; udp; tcp ] ->
         Fmt.strf
           "@[<2>let config = {V1_LWT.@ \
@@ -825,7 +825,7 @@ let stackv4_socket_conf ?(group="") interfaces = impl @@ object
       abstract (socket_tcpv4 None);
     ]
 
-    method connect _i modname = function
+    method! private connect _i modname = function
       | [ udpv4 ; tcpv4 ] ->
         Fmt.strf
           "let config =@[@ \
@@ -899,7 +899,7 @@ let nocrypto = impl @@ object
       | `Unix | `MacOSX -> ["nocrypto.lwt"]
 
     method configure _ = R.ok (enable_entropy ())
-    method connect i _ _ =
+    method! private connect i _ _ =
       let s = match Key.(get (Info.context i) target) with
         | `Xen | `Virtio | `Ukvm -> "Nocrypto_entropy_mirage.initialize ()"
         | `Unix | `MacOSX -> "Nocrypto_entropy_lwt.initialize ()"
@@ -918,7 +918,7 @@ let tcp_conduit_connector = impl @@ object
     method module_name = "Conduit_mirage.With_tcp"
     method packages = Key.pure [ "mirage-conduit" ]
     method libraries = Key.pure [ "conduit.mirage" ]
-    method connect _ modname = function
+    method! private connect _ modname = function
       | [ stack ] ->
         Fmt.strf "return (%s.connect %s)@;" modname stack
       | _ -> failwith "Wrong arguments to connect to tcp conduit connector."
@@ -932,7 +932,7 @@ let tls_conduit_connector = impl @@ object
     method packages = Key.pure [ "mirage-conduit" ; "tls" ]
     method libraries = Key.pure [ "conduit.mirage" ; "tls.mirage" ]
     method deps = [ abstract nocrypto ]
-    method connect _ _ _ = "return Conduit_mirage.with_tls"
+    method! private connect _ _ _ = "return Conduit_mirage.with_tls"
   end
 
 type conduit = Conduit
@@ -947,7 +947,7 @@ let conduit_with_connectors connectors = impl @@ object
     method libraries = Key.pure [ "conduit.mirage" ]
     method deps = abstract nocrypto :: List.map abstract connectors
 
-    method connect _i _ = function
+    method! private connect _i _ = function
       (* There is always at least the nocrypto device *)
       | [] -> invalid_arg "Mirage.conduit_with_connector"
       | _nocrypto :: connectors ->
@@ -983,7 +983,7 @@ let resolver_unix_system = impl @@ object
       | `Unix | `MacOSX -> [ "mirage-conduit" ]
       | `Xen | `Virtio | `Ukvm -> failwith "Resolver_unix not supported on unikernel"
     method libraries = Key.pure [ "conduit.mirage"; "conduit.lwt-unix" ]
-    method connect _ _modname _ = "return Resolver_lwt_unix.system"
+    method! private connect _ _modname _ = "return Resolver_lwt_unix.system"
   end
 
 let resolver_dns_conf ~ns ~ns_port = impl @@ object
@@ -994,7 +994,7 @@ let resolver_dns_conf ~ns ~ns_port = impl @@ object
     method packages = Key.pure [ "dns"; "tcpip" ]
     method libraries = Key.pure [ "dns.mirage" ]
 
-    method connect _ modname = function
+    method! private connect _ modname = function
       | [ _t ; stack ] ->
         let meta_ns = Fmt.Dump.option meta_ipv4 in
         let meta_port = Fmt.(Dump.option int) in
@@ -1023,7 +1023,7 @@ let http_server conduit = impl @@ object
     method packages = Key.pure [ "mirage-http" ]
     method libraries = Key.pure [ "mirage-http" ]
     method deps = [ abstract conduit ]
-    method connect _i modname = function
+    method! private connect _i modname = function
       | [ conduit ] -> Fmt.strf "%s.connect %s >|= fun (`Ok x) -> x" modname conduit
       | _ -> failwith "The http connect should receive exactly one argument."
   end
@@ -1035,7 +1035,7 @@ let argv_unix = impl @@ object
     method ty = Functoria_app.argv
     method name = "argv_unix"
     method module_name = "OS.Env"
-    method connect _ _ _ = "OS.Env.argv ()"
+    method! private connect _ _ _ = "OS.Env.argv ()"
   end
 
 let argv_xen = impl @@ object
@@ -1045,7 +1045,7 @@ let argv_xen = impl @@ object
     method module_name = "Bootvar"
     method packages = Key.pure [ "mirage-bootvar-xen" ]
     method libraries = Key.pure [ "mirage-bootvar" ]
-    method connect _ _ _ =
+    method! private connect _ _ _ =
       "Bootvar.argv ()"
       |> or_fail_str "argv_xen"
   end
@@ -1144,7 +1144,7 @@ let mirage_logs_conf level underlying =
     method libraries = Key.pure ["mirage-logs"]
     method deps = [abstract underlying]
 
-    method connect_raw ~names ~info ~modname fmt =
+    method! private connect_raw ~names ~info ~modname fmt =
       Fmt.pf fmt
         "Logs.set_level (Some %a);@ \
          %s.(create () |> run) @@@@ fun () ->@ \
@@ -1187,7 +1187,7 @@ let mprof_trace ~size () =
            opam pin add lwt 'https://github.com/mirage/lwt.git#tracing'"
       end
 
-    method connect i _ _ = match Key.(get (Info.context i) target) with
+    method! private connect i _ _ = match Key.(get (Info.context i) target) with
       | `Unix | `MacOSX ->
         Fmt.strf
           "return ())@.\
@@ -1802,7 +1802,7 @@ module Project = struct
 
       method configure = configure
       method clean = clean
-      method connect _ _mod _names = "Lwt.return_unit"
+      method! private connect _ _mod _names = "Lwt.return_unit"
       method deps = List.map abstract jobs
     end
 
