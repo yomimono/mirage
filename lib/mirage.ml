@@ -1145,13 +1145,17 @@ let mirage_logs_conf level underlying =
     method deps = [abstract underlying]
 
     method! private connect_raw ~names ~info ~modname fmt =
-      Fmt.pf fmt
-        "Logs.set_level (Some %a);@ \
-         %s.(create () |> run) @@@@ fun () ->@ \
-         %t"
-         pp_level level
-         modname
-         (super#connect_raw ~names ~info ~modname)
+      match names with
+      | [clock; underlying] ->
+          let _clock = meta_init fmt clock |> meta_connect fmt in
+          Fmt.pf fmt
+            "Logs.set_level (Some %a);@ \
+             %s.(create () |> run) @@@@ fun () ->@ "
+             pp_level level
+             modname;
+          let underlying = meta_init fmt underlying |> meta_connect fmt in
+          Fmt.string fmt (super#connect info modname [underlying])
+      | _ -> failwith "Incorrect number of inputs!"
   end
 
 let with_mirage_logs ?(level=`Info) ?(clock=default_clock) job =
