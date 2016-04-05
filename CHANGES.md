@@ -1,7 +1,32 @@
-### NEXT
+### 2.7.3 (2016-03-20)
+
+* Fix another regression introduced in 2.7.1 which enable
+  `-warn-error` by default. This is now controlled by a
+  `--warn-error` flag on `mirage configure`. Currently it's
+  default value is [false] but this might change in future
+  versions (#520)
+
+### 2.7.2 (2016-03-20)
+
+* Fix regression introduced in 2.7.1 which truncates the ouput of
+  `opam install` and breaks `opam depext` (#519, by @samoht)
+
+### 2.7.1 (2016-03-17)
+
+* Improve the Dockerfile (#507, by @avsm)
+* Use Astring (by @samoht)
+* Clean-up dependencies automatically added by the tool
+  - do not require `lwt.syntax`, `cstruct.syntax` and `sexplib`, which
+    should make the default unikernels camlp4-free (#510, #515 by @samoht)
+  - always require `mirage-platform` (#512, by @talex5)
+  - ensure that `mirage-types` and `mirage-types-lwt` are installed
+* Turn on more warnings and enable "warning as errors".
+* Check that the OCaml compiler is at least 4.02.3 (by @samoht)
+
+### 2.7.0 (2016-02-17)
 
 The mirage tool is now based on functoria. (#441 #450, by @drup @samoht)
-See https://blogpost for full details.
+See https://mirage.io/blog/introducing-functoria for full details.
 
 * Command line interface: The config file must be passed with the -f option
   (instead of being just an argument).
@@ -9,8 +34,8 @@ See https://blogpost for full details.
 * `get_mode` is deprecated. You should use keys instead. And in particular
   `Key.target` and `Key.is_xen`.
 * `add_to_ocamlfind_libraries` and `add_to_opam_packages` are deprecated. Both
-  the `foreign` and the `register` functions now possess the `~libraries` and
-  `~packages` arguments to specify libraries dependencies.
+  the `foreign` and the `register` functions now accept the `~libraries` and
+  `~packages` arguments to specify library dependencies.
 
 * If you were using `tls` without the conduit combinator, you will be
   greeted during configuration by a message like this:
@@ -30,6 +55,9 @@ let my_functor =
   ```
   `My_functor.start` will now take an extra argument for each
   dependencies. In the case of nocrypto, this is `()`.
+
+* Remove `nat-script.sh` from the scripts directory, to be available
+  as an external script.
 
 ### 2.6.1 (2015-09-08)
 

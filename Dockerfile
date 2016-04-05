@@ -1,20 +1,7 @@
-FROM avsm/docker-opam-build:ubuntu-14.04-ocaml-4.02.1
-MAINTAINER Anil Madhavapeddy <anil@recoil.org>
-
-# add entrypoint script
-#
-USER root
-ADD .opam-config-exec /usr/bin/opam-config-exec
-RUN chmod 755 /usr/bin/opam-config-exec
-USER opam
-
-# setup opam environment
-#
-ENV OPAMYES 1
-ENV OPAMJOBS 4
-
-RUN opam install mirage
-
-# entry
-#
-CMD ["bash"]
+FROM ocaml/opam
+RUN sudo apt-get update && sudo apt-get install -y xdot vim && \
+  sudo -u opam sh -c "opam depext -u mirage mirage-xen mirage-unix" && \
+  sudo -u opam sh -c "opam install -y -j 2 -v mirage mirage-xen mirage-unix" && \
+  sudo sh -c "mkdir -p /src && chown opam /src"
+VOLUME /src
+WORKDIR /src

@@ -21,7 +21,7 @@
     This module defines the basic signatures that functor parameters
     should implement in MirageOS to be portable. *)
 
-(** {1 Abtract devices}
+(** {1 Abstract devices}
 
     Defines the functions to define what is a device state and
     how to disconnect such a device. *)
@@ -58,7 +58,7 @@ end
 (** {1 Random}
 
     Operations to generate randomness. This is currently a passthrough
-    to the OCaml Random generator, and will be deprecated in V2 and
+    to the OCaml Random generator, and will be deprecated and
     turned into a proper DEVICE with blocking modes. *)
 module type RANDOM = sig
 
@@ -147,11 +147,22 @@ module type FLOW = sig
       error. *)
 
   val close: flow -> unit io
-  (** [close flow] will flush all pending writes and signal the end of
-      the flow to the remote endpoint.  When the result [unit io]
-      becomes determined, all further calls to [read flow] will result
-      in a [`Eof]. *)
+  (** [close flow] will flush all pending writes and signal the remote
+      endpoint that there will be no future writes. Once the remote endpoint
+      has read all pending data, it is expected that calls to [read] on
+      the remote will return [`Eof].
 
+      Note it is still possible for the remote endpoint to [write] to
+      the flow and for the local endpoint to call [read]. This state where
+      the local endpoint has called [close] but the remote endpoint
+      has not called [close] is similar to that of a half-closed TCP
+      connection or a Unix socket after [shutdown(SHUTDOWN_WRITE)].
+
+      The result [unit io] will become determined when the remote endpoint
+      finishes calling [write] and calls [close]. At this point no data
+      can flow in either direction and resources associated with the flow
+      can be freed.
+      *)
 end
 
 (** {1 Console input/output} *)
@@ -172,7 +183,7 @@ module type CONSOLE = sig
   and type flow   := t
 
   val log: t -> string -> unit
-  (** [log str] writes as much characters of [str] that can be written
+  (** [log str] writes as many characters of [str] that can be written
       in one write operation to the console [t], then writes "\r\n" to
       it. *)
 
@@ -483,16 +494,17 @@ module type ARP = sig
       value. *)
   val get_ips : t -> ipaddr list
 
-  (** [set_ips arp] sets the bound IP address list, which will xmit a
+  (** [set_ips arp] sets the bound IP address list, which will transmit a
       GARP packet also. *)
   val set_ips : t -> ipaddr list -> unit io
 
   (** [remove_ip arp ip] removes [ip] to the bound IP address list in
-      the [arp] value, which will xmit a GARP packet also. *)
+      the [arp] value, which will transmit a GARP packet for any remaining IPs in
+      the bound IP address list after the removal. *)
   val remove_ip : t -> ipaddr -> unit io
 
   (** [add_ip arp ip] adds [ip] to the bound IP address list in the
-      [arp] value, which will xmit a GARP packet also. *)
+      [arp] value, which will transmit a GARP packet also. *)
   val add_ip : t -> ipaddr -> unit io
 
   (** [query arp ip] queries the cache in [arp] for an ARP entry
@@ -514,6 +526,27 @@ end
 (** {1 IPv6 stack} *)
 module type IPV6 = sig
   include IP
+end
+
+(** {1 ICMP module} *)
+module type ICMP = sig
+  include DEVICE
+
+  type ipaddr
+  type buffer
+
+  val pp_error : Format.formatter -> error -> unit
+  (** pretty-print an error. *)
+
+  val input : t -> src:ipaddr -> dst:ipaddr -> buffer -> unit io
+(** [input t src dst buffer] reacts to the ICMP message in [buffer]. *)
+
+  val write : t -> dst:ipaddr -> buffer -> unit io
+(** [write t dst buffer] sends the ICMP message in [buffer] to [dst] over IP. *)
+end
+
+module type ICMPV4 = sig
+  include ICMP
 end
 
 (** {1 UDP stack}

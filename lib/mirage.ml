@@ -16,6 +16,7 @@
  *)
 
 open Rresult
+open Astring
 
 module Key = Mirage_key
 module Name = Functoria_app.Name
@@ -46,7 +47,6 @@ let io_page_conf = object
 end
 
 let default_io_page = impl io_page_conf
-
 
 type time = TIME
 let time = Type TIME
@@ -129,7 +129,7 @@ let crunch dirname = impl @@ object
     method ty = kv_ro
     val name = Name.create ("static" ^ dirname) ~prefix:"static"
     method name = name
-    method module_name = String.capitalize name
+    method module_name = String.Ascii.capitalize name
     method packages = Key.pure [ "mirage-types"; "lwt"; "cstruct"; "crunch" ]
     method libraries = Key.pure [ "mirage-types"; "lwt"; "cstruct" ]
     method deps = [ abstract default_io_page ]
@@ -513,6 +513,27 @@ let create_ipv6
   let gateways = Key.V6.gateways ?group gateways in
   ipv6_conf ~address ~netmask ~gateways () $ etif $ time $ clock
 
+type 'a icmp = ICMP
+type icmpv4 = v4 icmp
+
+let icmp = Type ICMP
+let icmpv4: icmpv4 typ = icmp
+
+let icmpv4_direct_conf () = object
+  inherit base_configurable
+  method ty : ('a ip -> 'a icmp) typ = ip @-> icmp
+  method name = "icmpv4"
+  method module_name = "Icmpv4.Make"
+  method packages = Key.pure [ "tcpip" ]
+  method libraries = Key.pure [ "tcpip.icmpv4" ]
+  method connect _ modname = function
+    | [ ip ] -> Printf.sprintf "%s.connect %s" modname ip
+    | _  -> failwith "The icmpv4 connect should receive exactly one argument."
+end
+
+let icmpv4_direct_func () = impl (icmpv4_direct_conf ())
+let direct_icmpv4 ip = icmpv4_direct_func () $ ip
+
 type 'a udp = UDP
 type udpv4 = v4 udp
 type udpv6 = v6 udp
@@ -617,7 +638,7 @@ let stackv4_direct_conf ?(group="") config = impl @@ object
 
     method ty =
       console @-> time @-> random @-> network @->
-      ethernet @-> arpv4 @-> ipv4 @-> udpv4 @-> tcpv4 @->
+      ethernet @-> arpv4 @-> ipv4 @-> icmpv4 @-> udpv4 @-> tcpv4 @->
       stackv4
 
     val name =
@@ -641,15 +662,15 @@ let stackv4_direct_conf ?(group="") config = impl @@ object
     method libraries = Key.pure [ "tcpip.stack-direct" ; "mirage.runtime" ]
 
     method connect _i modname = function
-      | [ console; _t; _r; interface; ethif; arp; ip; udp; tcp ] ->
+      | [ console; _t; _r; interface; ethif; arp; ip; icmp; udp; tcp ] ->
         Fmt.strf
           "@[<2>let config = {V1_LWT.@ \
            name = %S;@ console = %s;@ \
            interface = %s;@ mode = %a }@]@ in@ \
-           %s.connect config@ %s %s %s %s %s"
+           %s.connect config@ %s %s %s %s %s %s"
           name console
           interface  pp_stackv4_config config
-          modname ethif arp ip udp tcp
+          modname ethif arp ip icmp udp tcp
       | _ -> failwith "Wrong arguments to connect to tcpip direct stack."
 
   end
@@ -667,6 +688,7 @@ let direct_stackv4_with_config
   stackv4_direct_conf ?group config
   $ console $ time $ random $ network
   $ eth $ arp $ ip
+  $ direct_icmpv4 ip
   $ direct_udp ip
   $ direct_tcp ~clock ~random ~time ip
 
@@ -957,8 +979,8 @@ let mprof_trace ~size () =
     method connect i _ _ = match Key.(get (Info.context i) target) with
       | `Unix | `MacOSX ->
         Fmt.strf
-          "return (`Ok ())@.\
-           let () =@ \
+          "return (`Ok ()))@.\
+           let () = (@ \
              @[<v 2>  let buffer = MProf_unix.mmap_buffer ~size:%a %S in@ \
              let trace_config = MProf.Trace.Control.make buffer MProf_unix.timestamper in@ \
              MProf.Trace.Control.start trace_config@]"
@@ -966,8 +988,8 @@ let mprof_trace ~size () =
           unix_trace_file;
       | `Xen  ->
         Fmt.strf
-          "return (`Ok ())@.\
-           let () =@ \
+          "return (`Ok ()))@.\
+           let () = (@ \
              @[<v 2>  let trace_pages = MProf_xen.make_shared_buffer ~size:%a in@ \
              let buffer = trace_pages |> Io_page.to_cstruct |> Cstruct.to_bigarray in@ \
              let trace_config = MProf.Trace.Control.make buffer MProf_xen.timestamper in@ \
@@ -1126,13 +1148,15 @@ let configure_main_xl ?substitutions ext i =
         let (/) = Pervasives.(/) in
         let high, low = x / 26 - 1, x mod 26 + 1 in
         let high' = if high = -1 then "" else string_of_int26 high in
-        let low' = String.make 1 (char_of_int (low + (int_of_char 'a') - 1)) in
+        let low' =
+          String.v 1 (fun _ -> char_of_int (low + (int_of_char 'a') - 1))
+        in
         high' ^ low' in
       let vdev = Printf.sprintf "xvd%s" (string_of_int26 b.number) in
       let path = lookup substitutions (Block b) in
       Printf.sprintf "'format=raw, vdev=%s, access=rw, target=%s'" vdev path
     ) (Hashtbl.fold (fun _ v acc -> v :: acc) all_blocks []) in
-  append fmt "disk = [ %s ]" (String.concat ", " blocks);
+  append fmt "disk = [ %s ]" (String.concat ~sep:", " blocks);
   newline fmt;
   let networks = List.map (fun n ->
       Printf.sprintf "'bridge=%s'" (lookup substitutions (Network n))
@@ -1142,7 +1166,7 @@ let configure_main_xl ?substitutions ext i =
   append fmt "#     vif.default.script=\"vif-openvswitch\"";
   append fmt "# or add \"script=vif-openvswitch,\" before the \"bridge=\" \
               below:";
-  append fmt "vif = [ %s ]" (String.concat ", " networks);
+  append fmt "vif = [ %s ]" (String.concat ~sep:", " networks);
   ()
 
 let clean_main_xl ~root ~name ext = Cmd.remove (root / name ^ ext)
@@ -1201,52 +1225,16 @@ let configure_main_xe ~root ~name =
       append fmt "xe vbd-param-set uuid=$VBD other-config:owner=true";
     ) (Hashtbl.fold (fun _ v acc -> v :: acc) all_blocks []);
   append fmt "echo Starting VM";
-  append fmt "xe vm-start vm=%s" name;
+  append fmt "xe vm-start uuid=$VM";
   Unix.chmod file 0o755
 
 let clean_main_xe ~root ~name = Cmd.remove (root / name ^ ".xe")
 
-(* FIXME: replace by Astring *)
-module X = struct
-  let strip str =
-    let p = ref 0 in
-    let l = String.length str in
-    let fn = function
-      | ' ' | '\t' | '\r' | '\n' -> true
-      | _ -> false in
-    while !p < l && fn (String.unsafe_get str !p) do
-      incr p;
-    done;
-    let p = !p in
-    let l = ref (l - 1) in
-    while !l >= p && fn (String.unsafe_get str !l) do
-      decr l;
-    done;
-    String.sub str p (!l - p + 1)
-
-  let cut_at s sep =
-    try
-      let i = String.index s sep in
-      let name = String.sub s 0 i in
-      let version = String.sub s (i+1) (String.length s - i - 1) in
-      Some (name, version)
-    with _ ->
-      None
-
-  let split s sep =
-    let rec aux acc r =
-      match cut_at r sep with
-      | None       -> List.rev (r :: acc)
-      | Some (h,t) -> aux (strip h :: acc) t in
-    aux [] s
-
-end
-
 (* Implement something similar to the @name/file extended names of findlib. *)
 let rec expand_name ~lib param =
-  match X.cut_at param '@' with
+  match String.cut param ~sep:"@" with
   | None -> param
-  | Some (prefix, name) -> match X.cut_at name '/' with
+  | Some (prefix, name) -> match String.cut name ~sep:"/" with
     | None              -> prefix ^ lib / name
     | Some (name, rest) -> prefix ^ lib / name / expand_name ~lib rest
 
@@ -1254,18 +1242,18 @@ let rec expand_name ~lib param =
  * This is needed when building a Xen image as we do the link manually. *)
 let get_extra_ld_flags pkgs =
   Cmd.read "opam config var lib" >>= fun s ->
-  let lib = X.strip s in
+  let lib = String.trim s in
   Cmd.read
     "ocamlfind query -r -format '%%d\t%%(xen_linkopts)' -predicates native %s"
-    (String.concat " " pkgs) >>| fun output ->
-  X.split output '\n'
+    (String.concat ~sep:" " pkgs) >>| fun output ->
+  String.cuts output ~sep:"\n"
   |> List.fold_left (fun acc line ->
-      match X.cut_at line '\t' with
+      match String.cut line ~sep:"\t" with
       | None -> acc
       | Some (dir, ldflags) ->
-        let ldflags = X.split ldflags ' ' in
+        let ldflags = String.cuts ldflags ~sep:" " in
         let ldflags = List.map (expand_name ~lib) ldflags in
-        let ldflags = String.concat " " ldflags in
+        let ldflags = String.concat ~sep:" " ldflags in
         Printf.sprintf "-L%s %s" dir ldflags :: acc
     ) []
 
@@ -1310,7 +1298,7 @@ let configure_myocamlbuild_ml ~root =
 
 let clean_myocamlbuild_ml ~root = Cmd.remove (root / "myocamlbuild.ml")
 
-let configure_makefile ~target ~root ~name info =
+let configure_makefile ~target ~root ~name ~warn_error info =
   let open Codegen in
   let file = root / "Makefile" in
   let libs = Info.libraries info in
@@ -1327,24 +1315,24 @@ let configure_makefile ~target ~root ~name info =
   newline fmt;
   append fmt "LIBS   = %s" libraries;
   append fmt "PKGS   = %s" packages;
+  let default_tags =
+    (if warn_error then "warn_error(+1..49)," else "") ^
+    "warn(A-4-41-44),debug,bin_annot,\
+     strict_sequence,principal,safe_string"
+  in
   begin match target with
     | `Xen  ->
-      append fmt "SYNTAX = -tags \"syntax(camlp4o),annot,bin_annot,\
-                  strict_sequence,principal\"\n";
-      append fmt "SYNTAX += -tag-line \"<static*.*>: -syntax(camlp4o)\"\n";
+      append fmt "SYNTAX = -tags \"%s\"\n" default_tags;
       append fmt "FLAGS  = -cflag -g -lflags -g,-linkpkg,-dontlink,unix\n";
       append fmt "XENLIB = $(shell ocamlfind query mirage-xen)\n"
     | `Unix ->
-      append fmt "SYNTAX = -tags \"syntax(camlp4o),annot,bin_annot,\
-                  strict_sequence,principal\"\n";
-      append fmt "SYNTAX += -tag-line \"<static*.*>: -syntax(camlp4o)\"\n";
+      append fmt "SYNTAX = -tags \"%s\"\n" default_tags;
       append fmt "FLAGS  = -cflag -g -lflags -g,-linkpkg\n"
     | `MacOSX ->
-      append fmt "SYNTAX = -tags \"syntax(camlp4o),annot,bin_annot,\
-                  strict_sequence,principal,thread\"\n";
-      append fmt "SYNTAX += -tag-line \"<static*.*>: -syntax(camlp4o)\"\n";
+      append fmt "SYNTAX = -tags \"thread,%s\"\n" default_tags;
       append fmt "FLAGS  = -cflag -g -lflags -g,-linkpkg\n"
   end;
+  append fmt "SYNTAX += -tag-line \"<static*.*>: warn(-32-34)\"\n";
   append fmt "BUILD  = ocamlbuild -use-ocamlfind $(LIBS) $(SYNTAX) $(FLAGS)\n\
               OPAM   = opam\n\n\
               export PKG_CONFIG_PATH=$(shell opam config var prefix)\
@@ -1371,7 +1359,7 @@ let configure_makefile ~target ~root ~name info =
     let need_zImage =
       match Cmd.uname_m () with
       | Some machine ->
-        String.length machine > 2 && String.sub machine 0 3 = "arm"
+        String.length machine > 2 && String.is_prefix ~affix:"arm" machine
       | None -> failwith "uname -m failed; can't determine target machine type!"
     in
     if need_zImage then (
@@ -1385,7 +1373,7 @@ let configure_makefile ~target ~root ~name info =
   begin match target with
     | `Xen ->
       get_extra_ld_flags libs
-      >>| String.concat " \\\n\t  "
+      >>| String.concat ~sep:" \\\n\t  "
       >>= fun extra_c_archives ->
       append fmt "build:: main.native.o";
       let pkg_config_deps = "mirage-xen" in
@@ -1413,10 +1401,44 @@ let configure_makefile ~target ~root ~name info =
 
 let clean_makefile ~root = Cmd.remove (root / "Makefile")
 
+let check_ocaml_version () =
+  (* Similar to [Functoria_app.Cmd.ocaml_version] but with the patch number *)
+  let ocaml_version =
+    let version =
+      let v = Sys.ocaml_version in
+      match String.cut v ~sep:"+" with None -> v | Some (v, _) -> v
+    in
+    match String.cuts version ~sep:"." with
+    | [major; minor; patch] ->
+      begin
+        try int_of_string major, int_of_string minor, int_of_string patch
+        with _ -> 0, 0, 0
+      end
+    | _ -> 0, 0, 0
+  in
+  let major, minor, patch = ocaml_version in
+  if major < 4 ||
+     (major = 4 && minor < 2) ||
+     (major = 4 && minor = 2 && patch < 3)
+  then (
+    Log.error
+      "Your version of OCaml (%d.%02d.%d) is not supported. Please upgrade to\n\
+       at least OCaml 4.02.3 or use `--no-ocaml-version-check`."
+      major minor patch
+  ) else
+    R.ok ()
+
 let configure i =
   let name = Info.name i in
   let root = Info.root i in
-  let target = Key.(get (Info.context i) target) in
+  let ctx = Info.context i in
+  let target = Key.(get ctx target) in
+  let ocaml_check = not Key.(get ctx no_ocaml_check) in
+  let warn_error = Key.(get ctx warn_error) in
+  begin
+    if ocaml_check then check_ocaml_version ()
+    else R.ok ()
+  end >>= fun () ->
   check_entropy @@ Info.libraries i >>= fun () ->
   Log.info "%a %a" Log.blue "Configuring for target:" Key.pp_target target ;
   Cmd.in_dir root (fun () ->
@@ -1425,7 +1447,7 @@ let configure i =
       configure_main_xe ~root ~name;
       configure_main_libvirt_xml ~root ~name;
       configure_myocamlbuild_ml ~root;
-      configure_makefile ~target ~root ~name i;
+      configure_makefile ~target ~root ~name ~warn_error i;
     )
 
 let clean i =
@@ -1459,16 +1481,17 @@ module Project = struct
         Key.(abstract target);
         Key.(abstract unix);
         Key.(abstract xen);
+        Key.(abstract no_ocaml_check);
+        Key.(abstract warn_error);
       ]
 
       method packages =
-        let l = [ "lwt"; "sexplib" ] in
+        let l = [ "lwt"; "mirage-types"; "mirage-types-lwt" ] in
         Key.(if_ is_xen) ("mirage-xen" :: l) ("mirage-unix" :: l)
 
-      method libraries = Key.pure [
-          "lwt.syntax" ; "mirage.runtime" ;
-          "mirage-types.lwt" ; "sexplib"
-        ]
+      method libraries =
+        let l = [ "mirage.runtime"; "mirage-types.lwt" ] in
+        Key.(if_ is_xen) ("mirage-xen" :: l) ("mirage-unix" :: l)
 
       method configure = configure
       method clean = clean
