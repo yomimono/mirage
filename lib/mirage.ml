@@ -40,15 +40,6 @@ let backend_predicate = function
 type qrexec = job
 let qrexec = job
 
-let qrexec_conf = object
-  inherit base_configurable
-  method ty = qrexec
-  method name = "qrexec"
-  method module_name = "Qubes.RExec"
-  method libraries = Key.pure ["mirage-qubes"]
-  method packages = Key.pure [ "mirage-qubes" ]
-end
-
 let qrexec_qubes = impl @@ object
   inherit base_configurable
   method ty = qrexec
@@ -65,6 +56,26 @@ let qrexec_qubes = impl @@ object
          OS.Lifecycle.await_shutdown_request () >>= fun (`Poweroff | `Reboot ) ->@ \
          %s.disconnect qrexec);@ \
          Lwt.return (`Ok qrexec)"
+     modname modname
+end
+
+type gui = job
+let gui = job
+
+let gui_qubes = impl @@ object
+  inherit base_configurable
+  method ty = gui
+  val name = Name.ocamlify @@ "gui"
+  method name = name
+  method module_name = "Qubes.GUI"
+  method packages = Key.pure ["mirage-qubes"]
+  method libraries = Key.pure ["mirage-qubes"]
+  method connect _ modname _args =
+     Fmt.strf
+"@[<v 2>\
+         %s.connect ~domid:0 () >>= fun gui ->@ \
+         Lwt.async (fun () -> %s.listen gui);@ \
+         Lwt.return (`Ok gui)"
      modname modname
 end
 
@@ -1824,6 +1835,6 @@ let register
     name jobs =
   let argv = Some (Functoria_app.keys argv) in
   let reporter = if reporter == no_reporter then None else Some reporter in
-  let qubes = Some qrexec_qubes in
-  let init = None ++ argv ++ reporter ++ tracing ++ qubes in
+  let qubes = Some [qrexec_qubes ; gui_qubes ] in
+  let init = qubes ++ argv ++ reporter ++ tracing in
   register ?keys ~libraries ~packages ?init name jobs
