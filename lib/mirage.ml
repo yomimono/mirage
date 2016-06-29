@@ -48,7 +48,12 @@ let qrexec_qubes = impl @@ object
   method module_name = "Qubes.RExec"
   method packages = Key.pure ["mirage-qubes"]
   method libraries = Key.pure ["mirage-qubes"]
-  method connect _ modname _args =
+  method connect i modname _args =
+  match Key.(get (Info.context i) target) with
+  | `Unix | `MacOSX | `Xen ->
+  Fmt.strf
+  "return (`Ok ())"
+  | `Qubes ->
      Fmt.strf
 "@[<v 2>\
          %s.connect ~domid:0 () >>= fun qrexec ->@ \
@@ -70,7 +75,12 @@ let gui_qubes = impl @@ object
   method module_name = "Qubes.GUI"
   method packages = Key.pure ["mirage-qubes"]
   method libraries = Key.pure ["mirage-qubes"]
-  method connect _ modname _args =
+  method connect i modname _args =
+  match Key.(get (Info.context i) target) with
+  | `Unix | `MacOSX | `Xen ->
+  Fmt.strf
+  "return (`Ok ())"
+  | `Qubes ->
      Fmt.strf
 "@[<v 2>\
          %s.connect ~domid:0 () >>= fun gui ->@ \
