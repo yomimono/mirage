@@ -89,22 +89,22 @@ let gui_qubes = impl @@ object
      modname modname
 end
 
-type qubes_db = QUBES_DB
-let qubes_db = Type QUBES_DB
+type qubesdb = QUBES_DB
+let qubesdb = Type QUBES_DB
 
-let qubes_db_conf = object
+let qubesdb_conf = object
   inherit base_configurable
-  method ty = qubes_db
-  method name = "qubes_db"
+  method ty = qubesdb
+  method name = "qubesdb"
   method module_name = "Qubes.DB"
   method libraries = Key.pure ["mirage-qubes"]
   method packages = Key.pure [ "mirage-qubes" ]
 end
 
-let qubes_db_qubes str = impl @@ object
+let qubesdb_qubes str = impl @@ object
   inherit base_configurable
-  method ty = qubes_db
-  val name = Name.ocamlify @@ "qubes_db_" ^ str
+  method ty = qubesdb
+  val name = Name.ocamlify @@ "qubesdb_" ^ str
   method name = name
   method module_name = "Qubes.DB"
   method packages = Key.pure ["mirage-qubes"]
@@ -112,6 +112,8 @@ let qubes_db_qubes str = impl @@ object
   method connect _ _modname _args =
     Printf.sprintf "%s.connect ~domid:0 ()" "Qubes.DB"
 end
+
+let default_qubesdb = impl qubesdb_conf
 
 type io_page = IO_PAGE
 let io_page = Type IO_PAGE
