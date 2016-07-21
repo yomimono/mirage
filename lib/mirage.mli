@@ -44,6 +44,11 @@ val mprof_trace : size:int -> unit -> tracing impl
 
     @param size: size of the ring buffer to use. *)
 
+type qubesdb
+
+val qubesdb : qubesdb typ
+(** For the Qubes target, the Qubes database from which to look up
+ *  dynamic runtime configuration information. *)
 
 
 (** {2 Time} *)
@@ -294,8 +299,12 @@ val create_ipv4 : ?group:string ->
 (** Use an IPv4 address
     Exposes the keys {!Key.V4.ip}, {!Key.V4.network} and {!Key.V4.gateway}.
     If provided, the values of these keys will override those supplied
-    in the ipv4 configuration record, ifthat has been provided.
+    in the ipv4 configuration record, if that has been provided.
 *)
+
+val ipv4_qubes : qubesdb impl -> ethernet impl -> arpv4 impl -> ipv4 impl
+(** Use a given initialized QubesDB to look up and configure the appropriate
+ *  IPv4 interface. *)
 
 val create_ipv6:
   ?time:time impl -> ?clock:mclock impl ->
@@ -373,6 +382,7 @@ val socket_stackv4:
 *)
 val generic_stackv4 :
   ?group:string -> ?config:ipv4_config ->
+  ?qubesdb:qubesdb impl ->
   ?dhcp_key:bool value ->
   ?net_key:[ `Direct | `Socket ] value ->
   network impl -> stackv4 impl

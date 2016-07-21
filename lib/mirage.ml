@@ -37,7 +37,6 @@ let backend_predicate = function
   | `Unix | `MacOSX -> "mirage_unix"
 
 (** {2 Devices} *)
-type qrexec = job
 let qrexec = job
 
 let qrexec_qubes = impl @@ object
@@ -64,7 +63,6 @@ let qrexec_qubes = impl @@ object
      modname modname
 end
 
-type gui = job
 let gui = job
 
 let gui_qubes = impl @@ object
@@ -99,18 +97,6 @@ let qubesdb_conf = object
   method module_name = "Qubes.DB"
   method libraries = Key.pure ["mirage-qubes"]
   method packages = Key.pure [ "mirage-qubes" ]
-end
-
-let qubesdb_qubes str = impl @@ object
-  inherit base_configurable
-  method ty = qubesdb
-  val name = Name.ocamlify @@ "qubesdb_" ^ str
-  method name = name
-  method module_name = "Qubes.DB"
-  method packages = Key.pure ["mirage-qubes"]
-  method libraries = Key.pure ["mirage-qubes"]
-  method connect _ _modname _args =
-    Printf.sprintf "%s.connect ~domid:0 ()" "Qubes.DB"
 end
 
 let default_qubesdb = impl qubesdb_conf
@@ -716,6 +702,31 @@ type ipv6_config = {
 }
 (** Types for IP manual configuration. *)
 
+let ipv4_qubes_conf = impl @@ object
+  inherit base_configurable
+  method ty = qubesdb @-> ethernet @-> arpv4 @-> ipv4
+  method name = Name.create "ipv4" ~prefix:"ipv4"
+  method module_name = "Ipv4.Make"
+  method packages = Key.pure ["tcpip"]
+  method libraries = Key.pure ["tcpip.ipv4"]
+  method connect _ modname = function
+  | [ db ; ethif; arp ] ->
+      Fmt.strf
+"@[<v 2>\
+        let ip = Qubes.DB.read %s \"/qubes-ip\" in @ \
+        let netmask = Qubes.DB.read %s \"qubes-netmask\" in @ \
+        let gateway = Qubes.DB.read %s \"qubes-gateway\" in @ \
+        match (ip, netmask, gateway) with @ \
+        | Some ip, Some netmask, Some gateway -> @ \
+          %s.connect@[@ ip netmask gateway %s@ %s@] @ \
+        | _, _, _ -> `Error \"Missing key in Qubes DB; could not configure IPv4\" @]"
+        db db db modname ethif arp
+        (* TODO: Qubes.DB should be parameterized *)
+  | _ -> failwith "The qubes_ipv4_conf connect should receive exactly three arguments."
+end
+
+let ipv4_qubes db ethernet arp = ipv4_qubes_conf $ db $ ethernet $ arp
+
 let ipv6_conf ?addresses ?netmasks ?gateways () = impl @@ object
     inherit base_configurable
     method ty = ethernet @-> time @-> mclock @-> ipv6
@@ -887,7 +898,6 @@ let stackv4_direct_conf ?(group="") () = impl @@ object
           name interface
           modname ethif arp ip icmp udp tcp
       | _ -> failwith "Wrong arguments to connect to tcpip direct stack."
-
   end
 
 let direct_stackv4
@@ -914,6 +924,12 @@ let static_ipv4_stack ?group ?config tap =
   let e = etif tap in
   let a = arp e in
   let i = create_ipv4 ?group ?config e a in
+  direct_stackv4 ?group tap e a i
+
+let qubes_ipv4_stack ?group ?(qubesdb = default_qubesdb) tap =
+  let e = etif tap in
+  let a = arp e in
+  let i = ipv4_qubes qubesdb e a in
   direct_stackv4 ?group tap e a i
 
 let stackv4_socket_conf ?(group="") interfaces = impl @@ object
@@ -950,7 +966,7 @@ let socket_stackv4 ?group ipv4s =
 (** Generic stack *)
 
 let generic_stackv4
-    ?group ?config
+    ?group ?config ?qubesdb
     ?(dhcp_key = Key.value @@ Key.dhcp ?group ())
     ?(net_key = Key.value @@ Key.net ?group ())
     (tap : network impl) : stackv4 impl =
@@ -959,7 +975,11 @@ let generic_stackv4
     (socket_stackv4 ?group [Ipaddr.V4.any])
     (if_impl Key.(pure ((=) true) $ dhcp_key)
       (dhcp_stack ?group default_time tap)
-      (static_ipv4_stack ?config ?group tap))
+      (match_impl Key.(value target) [
+        `Qubes, qubes_ipv4_stack ?group ?qubesdb tap;
+      ] ~default:(static_ipv4_stack ?config ?group tap)
+      )
+    )
 
 type conduit_connector = Conduit_connector
 let conduit_connector = Type Conduit_connector
