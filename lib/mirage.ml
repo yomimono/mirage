@@ -37,6 +37,60 @@ let backend_predicate = function
   | `Unix | `MacOSX -> "mirage_unix"
 
 (** {2 Devices} *)
+type qrexec = job
+let qrexec = job
+
+let qrexec_conf = object
+  inherit base_configurable
+  method ty = qrexec
+  method name = "qrexec"
+  method module_name = "Qubes.RExec"
+  method libraries = Key.pure ["mirage-qubes"]
+  method packages = Key.pure [ "mirage-qubes" ]
+end
+
+let qrexec_qubes = impl @@ object
+  inherit base_configurable
+  method ty = qrexec
+  val name = Name.ocamlify @@ "qrexec_"
+  method name = name
+  method module_name = "Qubes.RExec"
+  method packages = Key.pure ["mirage-qubes"]
+  method libraries = Key.pure ["mirage-qubes"]
+  method connect _ modname _args =
+     Fmt.strf
+"@[<v 2>\
+         %s.connect ~domid:0 () >>= fun qrexec ->@ \
+         Lwt.async (fun () ->@ \
+         OS.Lifecycle.await_shutdown_request () >>= fun (`Poweroff | `Reboot ) ->@ \
+         %s.disconnect qrexec);@ \
+         Lwt.return (`Ok qrexec)"
+     modname modname
+end
+
+type qubes_db = QUBES_DB
+let qubes_db = Type QUBES_DB
+
+let qubes_db_conf = object
+  inherit base_configurable
+  method ty = qubes_db
+  method name = "qubes_db"
+  method module_name = "Qubes.DB"
+  method libraries = Key.pure ["mirage-qubes"]
+  method packages = Key.pure [ "mirage-qubes" ]
+end
+
+let qubes_db_qubes str = impl @@ object
+  inherit base_configurable
+  method ty = qubes_db
+  val name = Name.ocamlify @@ "qubes_db_" ^ str
+  method name = name
+  method module_name = "Qubes.DB"
+  method packages = Key.pure ["mirage-qubes"]
+  method libraries = Key.pure ["mirage-qubes"]
+  method connect _ _modname _args =
+    Printf.sprintf "%s.connect ~domid:0 ()" "Qubes.DB"
+end
 
 type io_page = IO_PAGE
 let io_page = Type IO_PAGE
@@ -309,12 +363,12 @@ class block_conf file =
     method module_name = "Block"
     method packages =
       Key.match_ Key.(value target) @@ function
-      | `Xen -> ["mirage-block-xen"]
+      | `Xen | `Qubes -> ["mirage-block-xen"]
       | `Virtio | `Ukvm -> ["mirage-block-solo5"]
       | `Unix | `MacOSX -> ["mirage-block-unix"]
     method libraries =
       Key.match_ Key.(value target) @@ function
-      | `Xen -> ["mirage-block-xen.front"]
+      | `Xen | `Qubes -> ["mirage-block-xen.front"]
       | `Virtio | `Ukvm -> ["mirage-block-solo5"]
       | `Unix | `MacOSX -> ["mirage-block-unix"]
 
@@ -322,7 +376,7 @@ class block_conf file =
       match target with
       | `Unix | `MacOSX | `Virtio | `Ukvm ->
         root / b.filename (* open the file directly *)
-      | `Xen ->
+      | `Xen | `Qubes ->
         (* We need the xenstore id *)
         (* Taken from https://github.com/mirage/mirage-block-xen/blob/
            a64d152586c7ebc1d23c5adaa4ddd440b45a3a83/lib/device_number.ml#L64 *)
@@ -470,6 +524,7 @@ let network_conf (intf : string Key.key) =
       | `Unix -> ["mirage-net-unix"]
       | `MacOSX -> ["mirage-net-macosx"]
       | `Xen -> ["mirage-net-xen"]
+      | `Qubes -> ["mirage-net-xen" ; "mirage-qubes"]
       | `Virtio | `Ukvm -> ["mirage-net-solo5"]
 
     method libraries = self#packages
@@ -564,7 +619,8 @@ let ipv4_keyed_conf ?address ?network ?gateway () = impl @@ object
     method libraries = Key.pure ["tcpip.ipv4"]
     method keys = address @?? network @?? gateway @?? []
     method connect _ modname = function
-      | [ etif ; arp ] ->
+    | [ etif ; arp ] ->
+
         Fmt.strf
           "%s.connect@[@ %a@ %a@ %a@ %s@ %s@]"
           modname
@@ -718,7 +774,7 @@ let udpv4_socket_conf ipv4_key = object
   method libraries =
     Key.match_ Key.(value target) @@ function
     | `Unix | `MacOSX -> [ "tcpip.udpv4-socket" ]
-    | `Xen | `Virtio | `Ukvm -> failwith "No socket implementation available for unikernel"
+    | `Xen | `Virtio | `Ukvm | `Qubes  -> failwith "No socket implementation available for unikernel"
   method connect _ modname _ =
     Format.asprintf "%s.connect %a" modname  pp_key ipv4_key
 end
@@ -765,7 +821,7 @@ let tcpv4_socket_conf ipv4_key = object
   method libraries =
     Key.match_ Key.(value target) @@ function
     | `Unix | `MacOSX -> [ "tcpip.tcpv4-socket" ]
-    | `Xen | `Virtio | `Ukvm  -> failwith "No socket implementation available for unikernel"
+    | `Xen | `Virtio | `Ukvm | `Qubes  -> failwith "No socket implementation available for unikernel"
   method connect _ modname _ =
     Format.asprintf "%s.connect %a" modname  pp_key ipv4_key
 end
@@ -1136,7 +1192,7 @@ let mprof_trace ~size () =
              MProf.Trace.Control.start trace_config@]"
           Key.serialize_call (Key.abstract key)
           unix_trace_file;
-      | `Xen | `Virtio | `Ukvm ->
+      | `Xen | `Virtio | `Ukvm | `Qubes ->
         Fmt.strf
           "Lwt.return ())@.\
            let () = (@ \
@@ -1483,7 +1539,7 @@ let configure_makefile ~target ~root ~name ~warn_error info =
      strict_sequence,principal,safe_string"
   in
   begin match target with
-    | `Xen ->
+    | `Xen | `Qubes ->
       append fmt "SYNTAX = -tags \"%s\"\n" default_tags;
       append fmt "FLAGS  = -r -cflag -g -lflags -g,-linkpkg,-dontlink,unix\n";
     | `Virtio | `Ukvm ->
@@ -1581,7 +1637,7 @@ let configure_makefile ~target ~root ~name ~warn_error info =
       Printf.sprintf "\t  -o mir-%s.xen" name
     ) in
   begin match target with
-    | `Xen ->
+    | `Xen | `Qubes ->
       append fmt "build:: main.native.o";
       append fmt "\t$(LD) -d -static -nostdlib \\\n\
                   \t  _build/main.native.o \\\n\
@@ -1768,5 +1824,6 @@ let register
     name jobs =
   let argv = Some (Functoria_app.keys argv) in
   let reporter = if reporter == no_reporter then None else Some reporter in
-  let init = None ++ argv ++ reporter ++ tracing in
+  let qubes = Some qrexec_qubes in
+  let init = None ++ argv ++ reporter ++ tracing ++ qubes in
   register ?keys ~libraries ~packages ?init name jobs
