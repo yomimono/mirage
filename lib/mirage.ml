@@ -60,7 +60,7 @@ let qrexec_qubes = impl @@ object
          Lwt.async (fun () ->@ \
          OS.Lifecycle.await_shutdown_request () >>= fun (`Poweroff | `Reboot ) ->@ \
          %s.disconnect qrexec);@ \
-         Lwt.return (`Ok qrexec)"
+         Lwt.return (`Ok qrexec)@]"
      modname modname
 end
 
@@ -85,7 +85,7 @@ let gui_qubes = impl @@ object
 "@[<v 2>\
          %s.connect ~domid:0 () >>= fun gui ->@ \
          Lwt.async (fun () -> %s.listen gui);@ \
-         Lwt.return (`Ok gui)"
+         Lwt.return (`Ok gui)@]"
      modname modname
 end
 
