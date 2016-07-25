@@ -437,8 +437,8 @@ module type IP = sig
       header and passes the result onto either the [tcp] or [udp]
       function, or the [default] function for unknown IP protocols. *)
 
-  val allocate_frame: t -> ?src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
-  (** [allocate_frame t ?src ~dst ~proto] returns a pair [(pkt, len)] such that
+  val allocate_frame: ?src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> t -> buffer * int
+  (** [allocate_frame ?src ~dst ~proto t] returns a pair [(pkt, len)] such that
       [Cstruct.sub pkt 0 len] is the IP header (including the link layer part) of a
       packet going to [dst] for protocol [proto]. If [src] is set, the packet will have its 
       source address set to [src].  If [src] is not set, the source address will be the address
