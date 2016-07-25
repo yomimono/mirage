@@ -622,15 +622,17 @@ module type UDP = sig
       return a concrete handler or a [None], which results in the
       datagram being dropped. *)
 
-  val write: ?src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer -> unit io
-  (** [write ~src_port ~dst ~dst_port udp data] is a thread
-      that writes [data] from an optional [src_port] to a [dst]
-      and [dst_port] IPv4 address pair. *)
+  val write: ?src:ipaddr -> ~src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer -> unit io
+  (** [write ?src ~src_port ~dst ~dst_port udp data] is a thread
+      that writes [data] from a [src] ip address (assumed to be the ip of [t],
+      if not specified] and a [src_port] udp port to a [dst] ip address
+      and [dst_port] udp port destination. *)
 
-  val writev: ?src:ipaddr -> ?src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer list -> unit io
-  (** [writev ?source_ip ?source_port ~dest_ip ~dest_port t bufs] is a thread
-      that writes [bufs] from an optional [source_ip] and [source_port] to a [dest_ip]
-      and [dest_port] IPv4 address pair. *)
+  val writev: ?src:ipaddr -> ~src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer list -> unit io
+  (** [writev ?src ~src_port ~dst ~dst_port udp bufs] is a thread
+      that writes a list of [bufs] from a [src] ip address (assumed to be the ip of [t],
+      if not specified] and a [src_port] udp port to a [dst] ip address
+      and [dst_port] udp port destination. *)
 end
 
 (** {1 TCP stack}
