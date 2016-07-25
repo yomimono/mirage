@@ -437,17 +437,13 @@ module type IP = sig
       header and passes the result onto either the [tcp] or [udp]
       function, or the [default] function for unknown IP protocols. *)
 
-  val allocate_frame: t -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
-  (** [allocate_frame t ~dst ~proto] returns a pair [(pkt, len)] such that
+  val allocate_frame: t -> ?src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
+  (** [allocate_frame t ?src ~dst ~proto] returns a pair [(pkt, len)] such that
       [Cstruct.sub pkt 0 len] is the IP header (including the link layer part) of a
-      packet going to [dst] for protocol [proto].  The space in [pkt] after the
-      first [len] bytes can be used by the client. *)
-
-  val allocate: t -> src:ipaddr -> dst:ipaddr -> proto:[`ICMP | `TCP | `UDP] -> buffer * int
-  (** [allocate ~src ~dst ~proto] returns a pair of [(pkt, len)] such that
-      [Cstruct.sub pkt 0 len] is the IP header (including the link layer part) of a
-      packet going to [dst] for protocol [proto].  The space in [pkt] after the
-      first [len] bytes can be used by the client. *)
+      packet going to [dst] for protocol [proto]. If [src] is set, the packet will have its 
+      source address set to [src].  If [src] is not set, the source address will be the address
+      currently assigned to [t].  The space in [pkt] after the first [len] bytes can be used by
+      the client. *)
 
   val write: t -> buffer -> buffer -> unit io
   (** [write t frame buf] writes the packet [frame :: buf :: []] to
@@ -622,13 +618,13 @@ module type UDP = sig
       return a concrete handler or a [None], which results in the
       datagram being dropped. *)
 
-  val write: ?src:ipaddr -> ~src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer -> unit io
+  val write: ?src:ipaddr -> src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer -> unit io
   (** [write ?src ~src_port ~dst ~dst_port udp data] is a thread
       that writes [data] from a [src] ip address (assumed to be the ip of [t],
       if not specified] and a [src_port] udp port to a [dst] ip address
       and [dst_port] udp port destination. *)
 
-  val writev: ?src:ipaddr -> ~src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer list -> unit io
+  val writev: ?src:ipaddr -> src_port:int -> dst:ipaddr -> dst_port:int -> t -> buffer list -> unit io
   (** [writev ?src ~src_port ~dst ~dst_port udp bufs] is a thread
       that writes a list of [bufs] from a [src] ip address (assumed to be the ip of [t],
       if not specified] and a [src_port] udp port to a [dst] ip address
