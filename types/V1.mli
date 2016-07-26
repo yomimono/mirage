@@ -732,9 +732,6 @@ module type STACKV4 = sig
   type tcpv4
   (** The type for TCPv4 stacks. *)
 
-  type ipv4
-  (** The type for IPv4 stacks. *)
-
   type error = [
     | `Unknown of string
   ]
@@ -758,12 +755,6 @@ module type STACKV4 = sig
      and type t = tcpv4
      and type ip = ipv4
 
-  module IPV4: IPV4
-    with type +'a io = 'a io
-     and type ipaddr = ipv4addr
-     and type buffer = buffer
-     and type t = ipv4
-
   val udpv4: t -> udpv4
   (** [udpv4 t] obtains a descriptor for use with the [UDPV4] module,
       usually to transmit traffic. *)
@@ -771,11 +762,6 @@ module type STACKV4 = sig
   val tcpv4: t -> tcpv4
   (** [tcpv4 t] obtains a descriptor for use with the [TCPV4] module,
       usually to initiate outgoing connections. *)
-
-  val ipv4: t -> ipv4
-  (** [ipv4 t] obtains a descriptor for use with the [IPV4] module,
-      which can handle raw IPv4 frames, or manipulate IP address
-      configuration on the stack interface. *)
 
   val listen_udpv4: t -> port:int -> UDPV4.callback -> unit
   (** [listen_udpv4 t ~port cb] registers the [cb] callback on the
