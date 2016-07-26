@@ -727,7 +727,7 @@ end
 
     A complete TCP/IPv4 stack that can be used by applications to
     receive and transmit network traffic. *)
-module type STACKV4 = sig
+module type STACK = sig
 
   type netif
   (** The type for network interface that is used to transmit and
@@ -742,17 +742,17 @@ module type STACKV4 = sig
   (** The type for the collection of user configuration specified to
       construct a stack. *)
 
-  type ipv4addr
-  (** The type for IPv4 addresses. *)
+  type ipaddr
+  (** The type for IP addresses. *)
 
   type buffer
   (** The type for memory buffers. *)
 
-  type udpv4
-  (** The type for UDPv4 stacks. *)
+  type udp
+  (** The type for UDP stacks. *)
 
-  type tcpv4
-  (** The type for TCPv4 stacks. *)
+  type tcp
+  (** The type for TCP stacks. *)
 
   type error = [
     | `Unknown of string
@@ -763,53 +763,51 @@ module type STACKV4 = sig
     type error := error
     and type id = (netif, mode) config
 
-  module UDPV4: UDP
+  module UDP: UDP
     with type +'a io = 'a io
-     and type ipaddr = ipv4addr
+     and type ipaddr = ipaddr
      and type buffer = buffer
-     and type t = udpv4
-     and type ip = ipv4
+     and type t = udp
 
-  module TCPV4: TCP
+  module TCP: TCP
     with type +'a io = 'a io
-     and type ipaddr = ipv4addr
+     and type ipaddr = ipaddr
      and type buffer = buffer
-     and type t = tcpv4
-     and type ip = ipv4
+     and type t = tcp
 
-  val udpv4: t -> udpv4
+  val udp: t -> udp
   (** [udpv4 t] obtains a descriptor for use with the [UDPV4] module,
       usually to transmit traffic. *)
 
-  val tcpv4: t -> tcpv4
+  val tcp: t -> tcp
   (** [tcpv4 t] obtains a descriptor for use with the [TCPV4] module,
       usually to initiate outgoing connections. *)
 
-  val listen_udpv4: t -> port:int -> UDPV4.callback -> unit
-  (** [listen_udpv4 t ~port cb] registers the [cb] callback on the
+  val listen_udp: t -> port:int -> UDP.callback -> unit
+  (** [listen_udp t ~port cb] registers the [cb] callback on the
       UDPv4 [port] and immediately return.  If [port] is invalid (not
       between 0 and 65535 inclusive), it raises [Invalid_argument].
       Multiple bindings to the same port will overwrite previous
       bindings, so callbacks will not chain if ports clash. *)
 
-  val listen_tcpv4: t -> port:int -> TCPV4.callback -> unit
+  val listen_tcp: t -> port:int -> TCP.callback -> unit
   (** [listen_tcpv4 t ~port cb] registers the [cb] callback on the
       TCPv4 [port] and immediatey return.  If [port] is invalid (not
       between 0 and 65535 inclusive), it raises [Invalid_argument].
       Multiple bindings to the same port will overwrite previous
       bindings, so callbacks will not chain if ports clash. *)
 
-  type tcpv4_action = [
+  type tcp_action = [
     | `Reject (* reject by sending a RST *)
-    | `Accept of TCPV4.callback
+    | `Accept of TCP.callback
   ]
   (** Action to take for an incoming TCPv4 flow *)
 
-  type tcpv4_on_flow_arrival_callback = src:(ipv4addr * int) -> dst:(ipv4addr * int) -> tcpv4_action io
+  type tcp_on_flow_arrival_callback = src:(ipaddr * int) -> dst:(ipaddr * int) -> tcp_action io
   (** Callback called per incoming flow to decide what action to take *)
 
-  val listen_tcpv4_flow: t -> on_flow_arrival:tcpv4_on_flow_arrival_callback -> unit
-  (** [listen_tcpv4_flow t cb] registers [cb] as the callback which will be called
+  val listen_tcp_flow: t -> on_flow_arrival:tcp_on_flow_arrival_callback -> unit
+  (** [listen_tcp_flow t cb] registers [cb] as the callback which will be called
       on every incoming flow to decide how to handle it. *)
 
   val listen: t -> unit io
