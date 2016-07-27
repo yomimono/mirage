@@ -711,11 +711,11 @@ module type TCP = sig
   type on_flow_arrival_callback = src:(ipaddr * int) -> dst:(ipaddr * int) -> action io
   (** Callback called per incoming flow to decide what action to take *)
 
-  val input: t -> listeners:(int -> callback option) -> ipinput
+  val input: t -> listeners:(remote:(ipaddr * int) -> local:(ipaddr * int) -> callback option) -> ipinput
   (** [input t listeners] defines a mapping of threads that are
-      willing to accept new flows on a given port.  If the [callback]
-      returns [None], the input function will return an RST to refuse
-      connections on a port. *)
+      willing to accept new flows based on their remote and local connection information.
+      If the [callback] returns [None], the input function will return an RST to refuse
+      the connection if one is attempted. *)
 
   val input_flow: t -> on_flow_arrival:on_flow_arrival_callback -> ipinput
   (** [input_flow t on_flow_arrival] creates an [ipinput] function which will
