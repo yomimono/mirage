@@ -151,6 +151,10 @@ type ('netif, 'mode) stack_config = {
   mode: 'mode;
 }
 
+module type TRANSPORT = TRANSPORT
+  with type 'a io = 'a Lwt.t
+   and type buffer = Cstruct.t
+
 (** Single network stack *)
 module type STACK = STACK
   with type 'a io = 'a Lwt.t

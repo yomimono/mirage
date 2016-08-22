@@ -741,27 +741,14 @@ module type TCP = sig
       handle it. *)
 end
 
-(** {1 TCP/IPv4 stack}
-
-    A complete TCP/IPv4 stack that can be used by applications to
+(** {1 Transport Layers}
+    A set of network interfaces at the transport layer
+    that can be used by applications to
     receive and transmit network traffic. *)
-module type STACK = sig
 
-  type netif
-  (** The type for network interface that is used to transmit and
-      receive traffic associated with this stack. *)
-
-  type mode
-  (** The type for configuration modes associated with this interface.
-      These can consist of the IPv4 address binding, or a DHCP
-      interface. *)
-
-  type ('netif, 'mode) config
-  (** The type for the collection of user configuration specified to
-      construct a stack. *)
-
+module type TRANSPORT = sig
   type ipaddr
-  (** The type for IP addresses. *)
+  (* the type for IP addresses in this context. *)
 
   type buffer
   (** The type for memory buffers. *)
@@ -772,14 +759,17 @@ module type STACK = sig
   type tcp
   (** The type for TCP stacks. *)
 
+  type icmp
+  (** The type for ICMP stacks. *)
+
   type error = [
     | `Unknown of string
   ]
-  (** The type for I/O operation errors. *)
 
   include DEVICE with
     type error := error
-    and type id = (netif, mode) config
+
+  (** The type for I/O operation errors. *)
 
   module UDP: UDP
     with type +'a io = 'a io
@@ -832,6 +822,30 @@ module type STACK = sig
   (** [listen t] requests that the stack listen for traffic on the
       network interface associated with the stack, and demultiplex
       traffic to the appropriate callbacks. *)
+
+end
+
+(** {1 TCP/IP stack}
+
+    A complete TCP/IP stack that can be used by applications to
+    receive and transmit network traffic. *)
+module type STACK = sig
+
+  include TRANSPORT
+
+  type netif
+  (** The type for network interface that is used to transmit and
+      receive traffic associated with this stack. *)
+
+  type mode
+  (** The type for configuration modes associated with this interface.
+      These can consist of the IPv4 address binding, or a DHCP
+      interface. *)
+
+  type ('netif, 'mode) config
+  (** The type for the collection of user configuration specified to
+      construct a stack. *)
+
 end
 
 (** {1 Buffered byte-stream}
