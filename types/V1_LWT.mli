@@ -131,22 +131,22 @@ module type FS = FS
    and type page_aligned_buffer = Cstruct.t
 
 type socket_stack_config =
-  Ipaddr.V4.t list
+  Ipaddr.t list
 
 type direct_stack_config = [
     `DHCP
   | `IPv4 of Ipaddr.V4.t * Ipaddr.V4.t * Ipaddr.V4.t list
+  (* TODO: configuration for IPv6 *)
 ]
 
-type ('netif, 'mode) stackv4_config = {
+type ('netif, 'mode) stack_config = {
   name: string;
   interface: 'netif;
   mode: 'mode;
 }
 
 (** Single network stack *)
-module type STACKV4 = STACK
+module type STACK = STACK
   with type 'a io = 'a Lwt.t
-   and type ('a,'b) config = ('a,'b) stackv4_config
-   and type ipaddr = Ipaddr.V4.t
+   and type ('a,'b) config = ('a,'b) stack_config
    and type buffer = Cstruct.t
