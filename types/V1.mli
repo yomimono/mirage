@@ -753,15 +753,6 @@ module type TRANSPORT = sig
   type buffer
   (** The type for memory buffers. *)
 
-  type udp
-  (** The type for UDP stacks. *)
-
-  type tcp
-  (** The type for TCP stacks. *)
-
-  type icmp
-  (** The type for ICMP stacks. *)
-
   type error = [
     | `Unknown of string
   ]
@@ -773,21 +764,19 @@ module type TRANSPORT = sig
 
   module UDP: UDP
     with type +'a io = 'a io
-     and type ipaddr = ipaddr
      and type buffer = buffer
-     and type t = udp
+     and type ipaddr := ipaddr
 
   module TCP: TCP
     with type +'a io = 'a io
-     and type ipaddr := ipaddr
      and type buffer = buffer
-     and type t = tcp
+     and type ipaddr := ipaddr
 
-  val udp: t -> udp
+  val udp: t -> UDP.t
   (** [udpv4 t] obtains a descriptor for use with the [UDPV4] module,
       usually to transmit traffic. *)
 
-  val tcp: t -> tcp
+  val tcp: t -> TCP.t
   (** [tcpv4 t] obtains a descriptor for use with the [TCPV4] module,
       usually to initiate outgoing connections. *)
 
