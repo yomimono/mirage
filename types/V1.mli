@@ -659,7 +659,7 @@ module type TCP = sig
   (** The type for memory buffers. *)
 
   type ip
-  (** The type for IPv4 stacks for this stack to connect to. *)
+  (** The type of underlying ip for this stack build on top of. *)
 
   type ipaddr
   (** The type for IP address representations. *)
@@ -779,7 +779,7 @@ module type TRANSPORT = sig
 
   module TCP: TCP
     with type +'a io = 'a io
-     and type ipaddr = ipaddr
+     and type ipaddr := ipaddr
      and type buffer = buffer
      and type t = tcp
 
