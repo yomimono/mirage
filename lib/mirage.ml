@@ -1119,10 +1119,24 @@ let no_argv = impl @@ object
     method connect _ _ _ = "Lwt.return [|\"\"|]"
   end
 
+let argv_qubes = impl @@ object
+    inherit base_configurable
+    method ty = Functoria_app.argv
+    method name = "argv_qubes"
+    method module_name = "Bootvar"
+    method packages = Key.pure [ "mirage-bootvar-xen" ]
+    method libraries = Key.pure [ "mirage-bootvar-xen" ]
+    method connect _ _ _ =
+      (* Qubes tries to pass some nice arguments.
+       * It means well, but we can't do much with them,
+       * and they cause Functoria to abort. *)
+      "Bootvar.argv ~filter:(fun (key, _) -> List.mem key @@ List.map snd Key_gen.runtime_keys) ()"
+  end
+
 let default_argv =
   match_impl Key.(value target) [
     `Xen, argv_xen;
-    `Qubes, argv_xen;
+    `Qubes, argv_qubes;
     `Virtio, argv_solo5;
     `Ukvm, argv_solo5
   ] ~default:argv_unix
