@@ -108,7 +108,7 @@ let default_unix = lazy (
 let target =
   let doc =
     "Target platform to compile the unikernel for. Valid values are: \
-     $(i,xen), $(i,unix), $(i,macosx), $(i,virtio), $(i,ukvm)."
+     $(i,xen), $(i,qubes), $(i,unix), $(i,macosx), $(i,virtio), $(i,ukvm)."
   in
   let serialize ppf = function
     | `Unix   -> Fmt.pf ppf "`Unix"
