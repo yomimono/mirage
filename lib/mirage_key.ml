@@ -134,7 +134,7 @@ let is_xen =
 let is_unix =
   Key.match_ Key.(value target) @@ function
   | `Unix | `MacOSX -> true
-  | `Xen | `Virtio | `Ukvm -> false
+  | `Qubes | `Xen | `Virtio | `Ukvm -> false
 
 let no_ocaml_check =
   let doc = "Bypass the OCaml compiler version checks." in
