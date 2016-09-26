@@ -891,7 +891,6 @@ let stackv4_direct_conf ?(group="") () = impl @@ object
 
   end
 
-
 let direct_stackv4
     ?(clock=default_monotonic_clock)
     ?(random=default_random)
