@@ -914,10 +914,12 @@ let direct_stackv4
   $ direct_tcp ~clock ~random ~time ip
 
 let dhcp_stack ?group time tap =
+  Log.info "qubes ipv4 stack chosen - assembling lower layers";
   let config = dhcp time tap in
   let e = etif tap in
   let (a : arpv4 impl) = arp e in
   let i = ipv4_of_dhcp config e a in
+  Log.info "calling direct_stackv4 with results of lower dhcp layers";
   direct_stackv4 ?group tap e a i
 
 let static_ipv4_stack ?group ?config tap =
@@ -927,9 +929,11 @@ let static_ipv4_stack ?group ?config tap =
   direct_stackv4 ?group tap e a i
 
 let qubes_ipv4_stack ?group ?(qubesdb = default_qubesdb) tap =
+  Log.info "qubes ipv4 stack chosen - assembling lower layers";
   let e = etif tap in
   let a = arp e in
   let i = ipv4_qubes qubesdb e a in
+  Log.info "calling direct_stackv4 with results of lower qubes layers";
   direct_stackv4 ?group tap e a i
 
 let stackv4_socket_conf ?(group="") interfaces = impl @@ object
