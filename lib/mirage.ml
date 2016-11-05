@@ -50,9 +50,9 @@ let qrexec_qubes = impl @@ object
   method libraries = Key.pure ["mirage-qubes"]
   method configure i =
     match Key.(get (Info.context i) target) with
-    | `Unix | `MacOSX | `Xen ->
-      Log.error "Qubes remote-exec invoked for non-Qubes target, stopping."
     | `Qubes -> Result.Ok ()
+    | _ ->
+      Log.error "Qubes remote-exec invoked for non-Qubes target, stopping."
   method connect _ modname _args =
      Fmt.strf
 "@[<v 2>\
@@ -77,9 +77,9 @@ let gui_qubes = impl @@ object
   method libraries = Key.pure ["mirage-qubes"]
   method configure i =
     match Key.(get (Info.context i) target) with
-    | `Unix | `MacOSX | `Xen ->
-      Log.error "Qubes GUI invoked for non-Qubes target, stopping."
     | `Qubes -> Result.Ok ()
+    | _ ->
+      Log.error "Qubes GUI invoked for non-Qubes target, stopping."
   method connect _ modname _args =
      Fmt.strf
 "@[<v 2>\
