@@ -50,6 +50,9 @@ val qubesdb : qubesdb typ
 (** For the Qubes target, the Qubes database from which to look up
  *  dynamic runtime configuration information. *)
 
+val default_qubesdb : qubesdb impl
+(** A default qubes database, guessed from the usual valid configurations. *)
+
 
 (** {2 Time} *)
 
