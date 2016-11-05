@@ -290,6 +290,7 @@ let console_solo5 str = impl @@ object
 let custom_console str =
   match_impl Key.(value target) [
     `Xen, console_xen str;
+    `Qubes, console_xen str;
     `Virtio, console_solo5 str;
     `Ukvm, console_solo5 str
   ] ~default:(console_unix str)
@@ -348,6 +349,7 @@ let direct_kv_ro_conf dirname = impl @@ object
 let direct_kv_ro dirname =
   match_impl Key.(value target) [
     `Xen, crunch dirname;
+    `Qubes, crunch dirname;
     `Virtio, crunch dirname;
     `Ukvm, crunch dirname
   ] ~default:(direct_kv_ro_conf dirname)
@@ -1114,6 +1116,7 @@ let no_argv = impl @@ object
 let default_argv =
   match_impl Key.(value target) [
     `Xen, argv_xen;
+    `Qubes, argv_xen;
     `Virtio, argv_solo5;
     `Ukvm, argv_solo5
   ] ~default:argv_unix
