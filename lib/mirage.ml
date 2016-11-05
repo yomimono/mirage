@@ -706,7 +706,7 @@ let ipv4_qubes_conf = impl @@ object
   inherit base_configurable
   method ty = qubesdb @-> ethernet @-> arpv4 @-> ipv4
   method name = Name.create "ipv4" ~prefix:"ipv4"
-  method module_name = "Ipv4.Make"
+  method module_name = "Static_ipv4.Make"
   method packages = Key.pure ["tcpip"]
   method libraries = Key.pure ["tcpip.ipv4"]
   method connect _ modname = function
