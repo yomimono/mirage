@@ -32,7 +32,7 @@ let get_target i = Key.(get (Info.context i) target)
 
 (* Mirage implementation backing the target. *)
 let backend_predicate = function
-  | `Xen            -> "mirage_xen"
+  | `Xen | `Qubes   -> "mirage_xen"
   | `Virtio | `Ukvm -> "mirage_solo5"
   | `Unix | `MacOSX -> "mirage_unix"
 
@@ -220,7 +220,7 @@ let nocrypto = impl @@ object
 
     method packages =
       Key.match_ Key.(value target) @@ function
-      | `Xen            -> ["nocrypto"; "zarith-xen"]
+      | `Xen | `Qubes   -> ["nocrypto"; "zarith-xen"]
       | `Virtio | `Ukvm -> ["nocrypto"; "zarith-freestanding"]
       | `Unix | `MacOSX -> ["nocrypto"]
 
@@ -230,7 +230,7 @@ let nocrypto = impl @@ object
     method configure _ = R.ok (enable_entropy ())
     method connect i _ _ =
       match Key.(get (Info.context i) target) with
-      | `Xen | `Virtio | `Ukvm -> "Nocrypto_entropy_mirage.initialize ()"
+      | `Xen | `Qubes | `Virtio | `Ukvm -> "Nocrypto_entropy_mirage.initialize ()"
       | `Unix | `MacOSX        -> "Nocrypto_entropy_lwt.initialize ()"
 
   end
@@ -1024,9 +1024,8 @@ let resolver_unix_system = impl @@ object
     method name = "resolver_unix"
     method module_name = "Resolver_lwt"
     method packages =
-      Key.match_ Key.(value target) @@ function
-      | `Unix | `MacOSX -> [ "mirage-conduit" ]
-      | `Xen | `Virtio | `Ukvm -> failwith "Resolver_unix not supported on unikernel"
+      Key.(if_ is_unix) ["mirage-conduit" ]
+      (failwith "Resolver_unix not supported on unikernel")
     method libraries = Key.pure [ "conduit.mirage"; "conduit.lwt-unix" ]
     method connect _ _modname _ = "Lwt.return Resolver_lwt_unix.system"
   end
@@ -1187,7 +1186,7 @@ let mprof_trace ~size () =
     method packages = Key.pure ["mirage-profile"]
     method libraries =
       Key.match_ Key.(value target) @@ function
-      | `Xen -> ["mirage-profile.xen"]
+      | `Xen | `Qubes -> ["mirage-profile.xen"]
       | `Virtio | `Ukvm -> failwith  "tracing is not currently implemented for solo5 targets"
       | `Unix | `MacOSX -> ["mirage-profile.unix"]
 
@@ -1557,7 +1556,7 @@ let configure_makefile ~target ~root ~name ~warn_error info =
     "warn(A-4-41-42-44),debug,bin_annot,\
      strict_sequence,principal,safe_string"
   in
-  begin match target with
+  begin match (target : Key.mode) with
     | `Xen | `Qubes ->
       append fmt "SYNTAX = -tags \"%s\"\n" default_tags;
       append fmt "FLAGS  = -r -cflag -g -lflags -g,-linkpkg,-dontlink,unix\n";
@@ -1580,14 +1579,14 @@ let configure_makefile ~target ~root ~name ~warn_error info =
   let ld = match target with
    | `Ukvm -> pkg_config "solo5-kernel-ukvm" "--variable=ld"
    | `Virtio -> pkg_config "solo5-kernel-virtio" "--variable=ld"
-   | `Xen | `MacOSX | `Unix -> "ld"
+   | `Xen | `Qubes | `MacOSX | `Unix -> "ld"
   in
   newline fmt;
   append fmt "LD=%s" ld;
   newline fmt;
   let pkg_config_deps =
     match target with
-    | `Xen -> "mirage-xen"
+    | `Xen | `Qubes -> "mirage-xen"
     | `Virtio -> "mirage-solo5 ocaml-freestanding"
     | `Ukvm -> "mirage-solo5 ocaml-freestanding"
     | `MacOSX | `Unix -> ""
@@ -1603,7 +1602,7 @@ let configure_makefile ~target ~root ~name ~warn_error info =
     append fmt "PRE_LD_FLAGS = %s\n" (pkg_config x "--variable=ldflags")
   in
   begin match target with
-    | `Xen ->
+    | `Xen | `Qubes ->
       get_extra_ld_flags "xen" libs >>= fun archives ->
       extra_ld_flags archives;
       R.ok ()
@@ -1763,7 +1762,7 @@ let configure i =
   Log.info "%a %a" Log.blue "Configuring for target:" Key.pp_target target ;
   Cmd.in_dir root (fun () ->
       (match target with
-       | `Xen ->
+       | `Xen | `Qubes ->
          configure_main_xl ".xl" i;
          configure_main_xl ~substitutions:[] ".xl.in" i;
          configure_main_xe ~root ~name;
@@ -1808,7 +1807,7 @@ module Project = struct
       method packages =
         let l = [ "lwt"; "mirage-types"; "mirage-types-lwt" ] in
         Key.match_ Key.(value target) @@ function
-        | `Xen -> "mirage-xen" :: l
+        | `Xen | `Qubes -> "mirage-xen" :: l
         | `Virtio -> "solo5-kernel-virtio" :: "mirage-solo5" :: l
         | `Ukvm -> "solo5-kernel-ukvm" :: "mirage-solo5" :: l
         | `Unix | `MacOSX -> "mirage-unix" :: l
@@ -1816,7 +1815,7 @@ module Project = struct
       method libraries =
         let l = [ "mirage.runtime"; "mirage-types"; "mirage-types.lwt" ] in
         Key.match_ Key.(value target) @@ function
-        | `Xen -> "mirage-xen" :: l
+        | `Xen | `Qubes -> "mirage-xen" :: l
         | `Virtio | `Ukvm -> "mirage-solo5" :: l
         | `Unix | `MacOSX -> "mirage-unix" :: l
 
