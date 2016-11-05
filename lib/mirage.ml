@@ -1853,12 +1853,21 @@ let (++) acc x = match acc, x with
   | None    , Some x -> Some [x]
   | Some acc, Some x -> Some (acc @ [x])
 
+(* TODO: ideally we'd combine these *)
+let qrexec_init = match_impl Key.(value target) [
+  `Qubes, qrexec_qubes;
+] ~default:Functoria_app.noop
+
+let gui_init = match_impl Key.(value target) [
+  `Qubes, gui_qubes;
+] ~default:Functoria_app.noop
+
 let register
     ?(argv=default_argv) ?tracing ?(reporter=default_reporter ())
     ?keys ?(libraries=[]) ?(packages=[])
     name jobs =
   let argv = Some (Functoria_app.keys argv) in
   let reporter = if reporter == no_reporter then None else Some reporter in
-  let qubes = Some [qrexec_qubes ; gui_qubes ] in
-  let init = qubes ++ argv ++ reporter ++ tracing in
+  let qubes_init = Some [qrexec_init; gui_init] in
+  let init = qubes_init ++ argv ++ reporter ++ tracing in
   register ?keys ~libraries ~packages ?init name jobs
