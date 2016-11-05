@@ -914,7 +914,7 @@ let direct_stackv4
   $ direct_tcp ~clock ~random ~time ip
 
 let dhcp_stack ?group time tap =
-  Log.info "qubes ipv4 stack chosen - assembling lower layers";
+  Log.info "dhcp ipv4 stack chosen - assembling lower layers";
   let config = dhcp time tap in
   let e = etif tap in
   let (a : arpv4 impl) = arp e in
