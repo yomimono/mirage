@@ -1647,6 +1647,9 @@ let configure_makefile ~target ~root ~name ~warn_error info =
 let clean_makefile ~root = Cmd.remove (root / "Makefile")
 
 let check_ocaml_version () =
+  let required_major = 4 in
+  let required_minor = 3 in
+  let required_patch = 0 in
   (* Similar to [Functoria_app.Cmd.ocaml_version] but with the patch number *)
   let ocaml_version =
     let version =
@@ -1662,14 +1665,14 @@ let check_ocaml_version () =
     | _ -> 0, 0, 0
   in
   let major, minor, patch = ocaml_version in
-  if major < 4 ||
-     (major = 4 && minor < 2) ||
-     (major = 4 && minor = 2 && patch < 3)
+  if major < required_major ||
+     (major = required_major && minor < required_minor) ||
+     (minor = required_minor && patch < required_patch)
   then (
     Log.error
       "Your version of OCaml (%d.%02d.%d) is not supported. Please upgrade to\n\
-       at least OCaml 4.02.3 or use `--no-ocaml-version-check`."
-      major minor patch
+       at least OCaml %d.%02d.%d or use `--no-ocaml-version-check`."
+      major minor patch required_major required_minor required_patch
   ) else
     R.ok ()
 
