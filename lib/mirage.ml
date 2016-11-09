@@ -706,22 +706,14 @@ let ipv4_qubes_conf = impl @@ object
   inherit base_configurable
   method ty = qubesdb @-> ethernet @-> arpv4 @-> ipv4
   method name = Name.create "ipv4" ~prefix:"ipv4"
-  method module_name = "Static_ipv4.Make"
-  method packages = Key.pure ["tcpip"]
-  method libraries = Key.pure ["tcpip.ipv4"]
+  method module_name = "Qubes_ipv4.Make"
+  method packages = Key.pure ["mirage-qubes"]
+  method libraries = Key.pure ["mirage-qubes.ipv4"]
   method connect _ modname = function
   | [ db ; ethif; arp ] ->
       Fmt.strf
-"@[<v 2>\
-        let ip = Qubes.DB.read %s \"/qubes-ip\" in @ \
-        let netmask = Qubes.DB.read %s \"qubes-netmask\" in @ \
-        let gateway = Qubes.DB.read %s \"qubes-gateway\" in @ \
-        match (ip, netmask, gateway) with @ \
-        | Some ip, Some netmask, Some gateway -> @ \
-          %s.connect@[@ ip netmask gateway %s@ %s@] @ \
-        | _, _, _ -> `Error \"Missing key in Qubes DB; could not configure IPv4\" @]"
-        db db db modname ethif arp
-        (* TODO: Qubes.DB should be parameterized *)
+        "%s.connect@[@ %s %s %s @@]"
+        modname db ethif arp
   | _ -> failwith "The qubes_ipv4_conf connect should receive exactly three arguments."
 end
 
