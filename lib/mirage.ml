@@ -712,7 +712,7 @@ let ipv4_qubes_conf = impl @@ object
   method connect _ modname = function
   | [ db ; ethif; arp ] ->
       Fmt.strf
-        "%s.connect@[@ %s %s %s @@]"
+        "%s.connect@[@ %s@ %s@ %s@]"
         modname db ethif arp
   | _ -> failwith "The qubes_ipv4_conf connect should receive exactly three arguments."
 end
@@ -969,12 +969,9 @@ let generic_stackv4
   if_impl
     Key.(pure ((=) `Socket) $ net_key)
     (socket_stackv4 ?group [Ipaddr.V4.any])
-    (if_impl Key.(pure ((=) true) $ dhcp_key)
-      (dhcp_stack ?group default_time tap)
-      (match_impl Key.(value target) [
+    (match_impl Key.(value target) [
         `Qubes, qubes_ipv4_stack ?group ?qubesdb tap;
       ] ~default:(static_ipv4_stack ?config ?group tap)
-      )
     )
 
 type conduit_connector = Conduit_connector
