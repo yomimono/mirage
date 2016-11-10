@@ -97,6 +97,11 @@ let qubesdb_conf = object
   method module_name = "Qubes.DB"
   method libraries = Key.pure ["mirage-qubes"]
   method packages = Key.pure [ "mirage-qubes" ]
+  method connect _ modname _args =
+     Fmt.strf
+"@[<v 2>\
+         %s.connect ~domid:0 ()@]"
+     modname
 end
 
 let default_qubesdb = impl qubesdb_conf
