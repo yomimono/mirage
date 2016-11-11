@@ -966,20 +966,29 @@ let socket_stackv4 ?group ipv4s =
 
 (** Generic stack *)
 
+(* The logic for choosing ipv4 configuration for this stack:
+ *  If the target is qubes, use qubes_ipv4_stack
+ *  For any other target, check the net key
+ *    if the net key is Socket, use socket_stack
+ *    if the net key is Direct, check the dhcp key
+ *      if the dhcp key is true, use dhcp_ipv4_stack
+ *      if the dhcp key is false, use static_ipv4_stack
+ *)
 let generic_stackv4
     ?group ?config ?qubesdb
     ?(dhcp_key = Key.value @@ Key.dhcp ?group ())
     ?(net_key = Key.value @@ Key.net ?group ())
     (tap : network impl) : stackv4 impl =
-  if_impl
-    Key.(pure ((=) `Socket) $ net_key)
-    (socket_stackv4 ?group [Ipaddr.V4.any])
-    (if_impl Key.(pure ((=) true) $ dhcp_key)
+  let dhcp_or_static =
+    if_impl Key.(pure ((=) true) $ dhcp_key)
       (dhcp_stack ?group default_time tap)
-      (match_impl Key.(value target) [
-          `Qubes, qubes_ipv4_stack ?group ?qubesdb tap;
-        ] ~default:(static_ipv4_stack ?config ?group tap)
-      )
+      (static_ipv4_stack ?config ?group tap)
+  in
+  if_impl Key.(pure ((=) `Qubes) $ value target)
+    (qubes_ipv4_stack ?group ?qubesdb tap)
+    (if_impl Key.(pure ((=) `Socket) $ net_key)
+      (socket_stackv4 ?group [Ipaddr.V4.any])
+      dhcp_or_static
     )
 
 type conduit_connector = Conduit_connector
