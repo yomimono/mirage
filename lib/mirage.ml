@@ -910,7 +910,7 @@ let direct_stackv4
   $ direct_udp ip
   $ direct_tcp ~clock ~random ~time ip
 
-let dhcp_stack ?group time tap =
+let dhcp_stack ?group ?(time = default_time) tap =
   Log.info "dhcp ipv4 stack chosen - assembling lower layers";
   let config = dhcp time tap in
   let e = etif tap in
@@ -975,17 +975,17 @@ let socket_stackv4 ?group ipv4s =
  *      if the dhcp key is false, use static_ipv4_stack
  *)
 let generic_stackv4
-    ?group ?config ?qubesdb
+    ?group ?config
     ?(dhcp_key = Key.value @@ Key.dhcp ?group ())
     ?(net_key = Key.value @@ Key.net ?group ())
     (tap : network impl) : stackv4 impl =
   let dhcp_or_static =
     if_impl Key.(pure ((=) true) $ dhcp_key)
-      (dhcp_stack ?group default_time tap)
+    (Log.info "dhcp stack chosen by key from generic_stackv4"; dhcp_stack ?group tap)
       (static_ipv4_stack ?config ?group tap)
   in
   if_impl Key.(pure ((=) `Qubes) $ value target)
-    (qubes_ipv4_stack ?group ?qubesdb tap)
+    (Log.info "qubes ipv4 stack chosen by target from generic_stackv4"; qubes_ipv4_stack ?group tap)
     (if_impl Key.(pure ((=) `Socket) $ net_key)
       (socket_stackv4 ?group [Ipaddr.V4.any])
       dhcp_or_static

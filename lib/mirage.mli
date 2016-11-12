@@ -375,6 +375,8 @@ val direct_stackv4:
 val socket_stackv4:
   ?group:string -> Ipaddr.V4.t list -> stackv4 impl
 
+val qubes_ipv4_stack : ?group:string -> ?qubesdb : qubesdb impl -> network impl -> stackv4 impl
+val dhcp_stack : ?group:string -> ?time : time impl -> network impl -> stackv4 impl
 (** Generic stack using a [dhcp] and a [net] keys: {!Key.net} and {!Key.dhcp}.
     - If [net] = [socket] then {!socket_stackv4} is used.
     - Else, if [dhcp] then {!direct_stackv4_with_dhcp} is used
@@ -385,7 +387,6 @@ val socket_stackv4:
 *)
 val generic_stackv4 :
   ?group:string -> ?config:ipv4_config ->
-  ?qubesdb:qubesdb impl ->
   ?dhcp_key:bool value ->
   ?net_key:[ `Direct | `Socket ] value ->
   network impl -> stackv4 impl
