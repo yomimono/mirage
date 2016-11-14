@@ -987,12 +987,12 @@ let generic_stackv4
     ?dhcp_key
     ?(net_key = Key.value @@ Key.net ?group ())
     (tap : network impl) : stackv4 impl =
-  if_impl Key.(pure ((=) `Qubes) $ value target)
-    (Log.info "qubes ipv4 stack chosen by target from generic_stackv4"; qubes_ipv4_stack ?group tap)
+  if_impl Key.(pure ((<>) `Qubes) $ value target)
     (if_impl Key.(pure ((=) `Socket) $ net_key)
       (socket_stackv4 ?group [Ipaddr.V4.any])
       (direct_autochooser ?group ?config ?dhcp_key tap)
     )
+    (Log.info "qubes ipv4 stack chosen by target from generic_stackv4"; qubes_ipv4_stack ?group tap)
 
 type conduit_connector = Conduit_connector
 let conduit_connector = Type Conduit_connector
