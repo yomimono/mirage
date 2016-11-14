@@ -974,21 +974,24 @@ let socket_stackv4 ?group ipv4s =
  *      if the dhcp key is true, use dhcp_ipv4_stack
  *      if the dhcp key is false, use static_ipv4_stack
  *)
-let generic_stackv4
+let direct_autochooser
     ?group ?config
     ?(dhcp_key = Key.value @@ Key.dhcp ?group ())
+    tap =
+  if_impl Key.(pure ((=) true) $ dhcp_key)
+  (Log.info "dhcp stack chosen by key from direct_autochooser"; dhcp_stack ?group tap)
+  (Log.info "static stack chosen by key from direct_autochooser"; static_ipv4_stack ?config ?group tap)
+
+let generic_stackv4
+    ?group ?config
+    ?dhcp_key
     ?(net_key = Key.value @@ Key.net ?group ())
     (tap : network impl) : stackv4 impl =
-  let dhcp_or_static =
-    if_impl Key.(pure ((=) true) $ dhcp_key)
-    (Log.info "dhcp stack chosen by key from generic_stackv4"; dhcp_stack ?group tap)
-      (static_ipv4_stack ?config ?group tap)
-  in
   if_impl Key.(pure ((=) `Qubes) $ value target)
     (Log.info "qubes ipv4 stack chosen by target from generic_stackv4"; qubes_ipv4_stack ?group tap)
     (if_impl Key.(pure ((=) `Socket) $ net_key)
       (socket_stackv4 ?group [Ipaddr.V4.any])
-      dhcp_or_static
+      (direct_autochooser ?group ?config ?dhcp_key tap)
     )
 
 type conduit_connector = Conduit_connector
