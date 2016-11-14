@@ -682,7 +682,7 @@ let ipv4_dhcp_conf = impl @@ object
   end
 
 
-let dhcp time net = dhcp_conf $ time $ net
+let default_dhcp time net = dhcp_conf $ time $ net
 let ipv4_of_dhcp dhcp ethif arp = ipv4_dhcp_conf $ dhcp $ ethif $ arp
 
 let create_ipv4 ?group ?config etif arp =
@@ -912,7 +912,7 @@ let direct_stackv4
 
 let dhcp_stack ?group ?(time = default_time) tap =
   Log.info "dhcp ipv4 stack chosen - assembling lower layers";
-  let config = dhcp time tap in
+  let config = default_dhcp time tap in
   let e = etif tap in
   let (a : arpv4 impl) = arp e in
   let i = ipv4_of_dhcp config e a in
