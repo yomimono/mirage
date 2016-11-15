@@ -1,14 +1,10 @@
 language: c
-install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-docker.sh
-script: bash -ex .travis-docker.sh
-services:
-  - docker
-sudo: false
+sudo: required
+install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
+script: bash -ex .travis-opam.sh
 env:
  global:
    - EXTRA_REMOTES="git://github.com/mirage/mirage-dev.git"
-   - PRE_INSTALL_HOOK="cd /home/opam/opam-repository && git pull origin master && opam update -u -y"
-   - EXTRA_DEPS="\nMODE=\$MODE"
    - POST_INSTALL_HOOK="sh ./.travis-ci.sh"
  matrix:
    - PACKAGE=mirage DISTRO=debian-testing OCAML_VERSION=4.03.0 MODE=xen
