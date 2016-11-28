@@ -139,7 +139,7 @@ module type MCLOCK = sig
 end
 
 module Flow : sig
-  type error = [
+  type error = [>
     | `Msg of string
   ]
   type write_error = [
