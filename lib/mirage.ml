@@ -1865,7 +1865,7 @@ let compile libs warn_error target =
   and result = match target with
     | `Unix | `MacOSX -> "main.native"
     | `Xen | `Qubes | `Virtio | `Ukvm | `Muen -> "main.native.o"
-  and cflags = [ "-g" ]
+  and cflags = [ "-g"; "-mno-red-zone"; "-fno-stack-protector"]
   and lflags =
     let dontlink =
       match target with
